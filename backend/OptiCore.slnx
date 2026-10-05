@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OptiCore.Api/OptiCore.Api.csproj" />
+    <Project Path="src/OptiCore.Application/OptiCore.Application.csproj" />
+    <Project Path="src/OptiCore.Domain/OptiCore.Domain.csproj" />
+    <Project Path="src/OptiCore.Infrastructure/OptiCore.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OptiCore.Tests/OptiCore.Tests.csproj" />
+  </Folder>
+</Solution>
