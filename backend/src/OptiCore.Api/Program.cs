@@ -1,13 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+using OptiCore.Infrastructure;
 using OptiCore.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString =
-    builder.Configuration.GetConnectionString("OptiCoreDatabase");
-
-builder.Services.AddDbContext<OptiCoreDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
@@ -18,7 +14,6 @@ app.MapGet("/health", () =>
         status = "ok"
     });
 });
-
 
 app.MapGet("/health/database", async (OptiCoreDbContext db) =>
 {
@@ -35,7 +30,5 @@ app.MapGet("/health/database", async (OptiCoreDbContext db) =>
         database = "connected"
     });
 });
-
-
 
 app.Run();
