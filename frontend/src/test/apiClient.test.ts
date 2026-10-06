@@ -12,7 +12,7 @@ it('generates a stable nonempty UUID per development browser', () => {
 })
 it('does not invent an actor in a production build', () => {
   vi.stubEnv('DEV', false)
-  expect(() => developmentActor()).toThrow('authentication')
+  expect(() => developmentActor()).toThrow('הזדהות')
   expect(localStorage.length).toBe(0)
 })
 it('handles 204 responses', async () => {
@@ -21,11 +21,11 @@ it('handles 204 responses', async () => {
 })
 it('hides unexpected ProblemDetails and database internals', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ title: 'Npgsql database secret', detail: 'stackTrace' }), { status: 500 })))
-  await expect(apiRequest('/api/customers')).rejects.toMatchObject({ status: 500, message: 'Unable to complete the request. Please try again.' })
+  await expect(apiRequest('/api/customers')).rejects.toMatchObject({ status: 500, message: 'לא ניתן להשלים את הפעולה. נסה שוב.' })
 })
 it('maps duplicate ProblemDetails safely', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 409 })))
-  await expect(apiRequest('/api/customers')).rejects.toMatchObject({ status: 409, message: 'A customer with this National ID already exists.' })
+  await expect(apiRequest('/api/customers')).rejects.toMatchObject({ status: 409, message: 'לקוח עם תעודת זהות זו כבר קיים במערכת.' })
 })
 it('attaches actor only to customer mutations', async () => {
   vi.stubEnv('DEV', true)

@@ -5,5 +5,5 @@ import { queryClient } from './queryClient'
 import { router } from './router'
 import { appDirection } from './direction'
 export function App() {
-  return <QueryClientProvider client={queryClient}><RouterProvider router={router} /><Toaster richColors dir={appDirection} /></QueryClientProvider>
+  return <QueryClientProvider client={queryClient}><RouterProvider router={router} /><Toaster richColors dir={appDirection} containerAriaLabel="התראות" toastOptions={{ closeButtonAriaLabel: 'סגירת התראה' }} /></QueryClientProvider>
 }

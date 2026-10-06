@@ -1,1 +1,1 @@
-export const appDirection: 'ltr' | 'rtl' = 'ltr'
+export const appDirection: 'ltr' | 'rtl' = 'rtl'

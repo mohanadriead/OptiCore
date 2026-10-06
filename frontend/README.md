@@ -60,8 +60,10 @@ frontend route fallback.
 ## Implementation notes
 
 - Source lives in app/, components/ and features/customers/.
-- Direction is centralized in src/app/direction.ts; change it to rtl to preview
-  RTL layout. English text is used; no translation system is included.
+- Hebrew/RTL is the default presentation, centralized in src/app/direction.ts
+  and the document language. No translation framework is included. IDs, phones,
+  email and date inputs use local LTR direction. Display dates use he-IL;
+  date-only values are formatted without timezone shifts.
 - Query results remain in memory only. No customer data is stored in localStorage.
 - Required fields and string limits mirror the backend. National ID and gender
   stay text fields; email has no extra format validation.

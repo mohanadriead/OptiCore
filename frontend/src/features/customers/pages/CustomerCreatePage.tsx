@@ -10,7 +10,7 @@ export function CustomerCreatePage() {
   const navigate = useNavigate()
   const refresh = useRefreshCustomer()
   const mutation = useMutation({ mutationFn: (values: CustomerFormValues) => createCustomer({ ...detailsPayload(values), nationalId: values.nationalId, whatsAppConsent: values.whatsAppConsent }),
-    onSuccess: async customer => { await refresh(customer); toast.success('Customer created'); navigate('/customers/' + customer.customerNumber) } })
-  return <div className="max-w-4xl"><Link to="/customers" className="text-sm text-primary">Customers</Link><h1 className="mb-2 mt-4">New Customer</h1><p className="mb-6 text-sm text-muted-foreground">Add contact and personal details to create a customer record.</p>
+    onSuccess: async customer => { await refresh(customer); toast.success('הלקוח נוצר בהצלחה'); navigate('/customers/' + customer.customerNumber) } })
+  return <div className="max-w-4xl"><Link to="/customers" className="text-sm text-primary">לקוחות</Link><h1 className="mb-2 mt-4">לקוח חדש</h1><p className="mb-6 text-sm text-muted-foreground">הזן פרטים אישיים ופרטי קשר ליצירת רשומת לקוח.</p>
     {mutation.isError && <ErrorFeedback error={mutation.error} />}<CustomerForm pending={mutation.isPending} onSave={values => mutation.mutate(values)} cancelTo="/customers" /></div>
 }

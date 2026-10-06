@@ -13,13 +13,13 @@ export function CustomerEditPage() {
   const navigate = useNavigate()
   const refresh = useRefreshCustomer()
   const mutation = useMutation({ mutationFn: (values: CustomerFormValues) => updateCustomer(number, detailsPayload(values)),
-    onSuccess: async customer => { await refresh(customer); toast.success('Customer updated'); navigate('/customers/' + number) } })
-  if (!Number.isInteger(number) || number <= 0) return <ErrorFeedback error={new ApiError(404, 'Customer not found.')} />
+    onSuccess: async customer => { await refresh(customer); toast.success('פרטי הלקוח עודכנו בהצלחה'); navigate('/customers/' + number) } })
+  if (!Number.isInteger(number) || number <= 0) return <ErrorFeedback error={new ApiError(404, 'הלקוח לא נמצא.')} />
   if (result.isPending) return <Loading />
   if (result.isError) return <ErrorFeedback error={result.error} />
   const customer = result.data
-  return <div className="max-w-4xl"><Link to={'/customers/' + number} className="text-sm text-primary">Customer #{number}</Link><h1 className="mb-2 mt-4">Edit Customer</h1>
-    <p className="mb-6 text-sm text-muted-foreground">National ID: {customer.nationalId} · Identity and consent are managed separately.</p>
+  return <div className="max-w-4xl"><Link to={'/customers/' + number} className="text-sm text-primary">מספר לקוח <bdi dir="ltr">{number}</bdi></Link><h1 className="mb-2 mt-4">עריכת לקוח</h1>
+    <p className="mb-6 text-sm text-muted-foreground">תעודת זהות: <bdi dir="ltr">{customer.nationalId}</bdi> · פרטי הזיהוי וההסכמה מנוהלים בנפרד.</p>
     {mutation.isError && <ErrorFeedback error={mutation.error} />}
     <CustomerForm key={number} editing initial={{ ...customer, homePhone: customer.homePhone ?? '', email: customer.email ?? '', street: customer.street ?? '', notes: customer.notes ?? '' }} pending={mutation.isPending} onSave={values => mutation.mutate(values)} cancelTo={'/customers/' + number} /></div>
 }

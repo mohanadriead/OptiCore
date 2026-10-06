@@ -8,13 +8,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { createSchema, emptyValues, type CustomerFormValues } from '../schemas/customerSchemas'
 
 const fields: { name: Exclude<keyof CustomerFormValues, 'whatsAppConsent'>; label: string; max?: number; required?: boolean; type?: string }[] = [
-  { name: 'nationalId', label: 'National ID', max: 9, required: true },
-  { name: 'firstName', label: 'First Name', max: 100, required: true }, { name: 'lastName', label: 'Last Name', max: 100, required: true },
-  { name: 'dateOfBirth', label: 'Date of Birth', required: true, type: 'date' },
-  { name: 'mobilePhone', label: 'Mobile Phone', max: 30, required: true, type: 'tel' },
-  { name: 'homePhone', label: 'Home Phone', max: 30, type: 'tel' }, { name: 'email', label: 'Email', max: 254 },
-  { name: 'city', label: 'City', max: 100, required: true }, { name: 'street', label: 'Street', max: 200 },
-  { name: 'gender', label: 'Gender', max: 50, required: true }, { name: 'notes', label: 'Notes', max: 4000 },
+  { name: 'nationalId', label: 'תעודת זהות', max: 9, required: true },
+  { name: 'firstName', label: 'שם פרטי', max: 100, required: true }, { name: 'lastName', label: 'שם משפחה', max: 100, required: true },
+  { name: 'dateOfBirth', label: 'תאריך לידה', required: true, type: 'date' },
+  { name: 'mobilePhone', label: 'טלפון נייד', max: 30, required: true, type: 'tel' },
+  { name: 'homePhone', label: 'טלפון בבית', max: 30, type: 'tel' }, { name: 'email', label: 'דוא״ל', max: 254 },
+  { name: 'city', label: 'עיר', max: 100, required: true }, { name: 'street', label: 'רחוב', max: 200 },
+  { name: 'gender', label: 'מגדר', max: 50, required: true }, { name: 'notes', label: 'הערות', max: 4000 },
 ]
 export function CustomerForm({ initial, editing = false, pending, onSave, cancelTo }: {
   initial?: CustomerFormValues; editing?: boolean; pending: boolean;
@@ -22,19 +22,19 @@ export function CustomerForm({ initial, editing = false, pending, onSave, cancel
 }) {
   const form = useForm<CustomerFormValues>({ resolver: zodResolver(createSchema), defaultValues: initial ?? emptyValues })
   return <Form {...form}><form noValidate onSubmit={form.handleSubmit(onSave)} className="rounded-lg border bg-white p-6">
-    <p className="mb-6 text-sm text-muted-foreground">Fields marked * are required.</p>
+    <p className="mb-6 text-sm text-muted-foreground">שדות המסומנים ב-* הם שדות חובה.</p>
     <fieldset disabled={pending} className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
       {fields.filter(field => !editing || field.name !== 'nationalId').map(({ name, label, max, required, type }) =>
         <FormField key={name} control={form.control} name={name} render={({ field }) =>
           <FormItem className={name === 'notes' ? 'sm:col-span-2' : ''}>
             <FormLabel>{label}{required ? ' *' : ''}</FormLabel>
             <FormControl>{name === 'notes' ? <Textarea {...field} maxLength={max} rows={3} /> :
-              <Input {...field} type={type ?? 'text'} maxLength={max} aria-required={required} />}</FormControl><FormMessage />
+              <Input {...field} dir={['nationalId', 'mobilePhone', 'homePhone', 'email', 'dateOfBirth'].includes(name) ? 'ltr' : undefined} type={type ?? 'text'} maxLength={max} aria-required={required} />}</FormControl><FormMessage />
           </FormItem>} />)}
       {!editing && <FormField control={form.control} name="whatsAppConsent" render={({ field }) =>
-        <FormItem className="flex items-center gap-3 sm:col-span-2"><FormControl><input type="checkbox" checked={field.value} onChange={field.onChange} ref={field.ref} className="size-4 accent-primary" /></FormControl><FormLabel>Customer consents to WhatsApp messages</FormLabel><FormMessage /></FormItem>} />}
+        <FormItem className="flex items-center gap-3 sm:col-span-2"><FormControl><input type="checkbox" checked={field.value} onChange={field.onChange} ref={field.ref} className="size-4 accent-primary" /></FormControl><FormLabel>הלקוח מסכים לקבל הודעות WhatsApp</FormLabel><FormMessage /></FormItem>} />}
     </fieldset>
-    <div className="mt-7 flex justify-end gap-3 border-t pt-5"><Button variant="outline" asChild><Link to={cancelTo}>Cancel</Link></Button>
-      <Button type="submit" disabled={pending}>{pending ? 'Saving…' : editing ? 'Save Changes' : 'Create Customer'}</Button></div>
+    <div className="mt-7 flex justify-end gap-3 border-t pt-5"><Button variant="outline" asChild><Link to={cancelTo}>ביטול</Link></Button>
+      <Button type="submit" disabled={pending}>{pending ? 'שומר…' : editing ? 'שמירת שינויים' : 'יצירת לקוח'}</Button></div>
   </form></Form>
 }
