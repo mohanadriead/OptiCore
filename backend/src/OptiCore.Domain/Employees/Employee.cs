@@ -26,8 +26,8 @@ public sealed class Employee : AuditableEntity
         Username = Required(username, 100, "Username");
         NormalizedUsername = NormalizeUsername(Username);
         PasswordHash = Required(passwordHash, 1024, "Password hash");
-        Phone = Required(phone, 30, "Phone");
-        NationalId = Required(nationalId, 9, "National ID");
+        Phone = AsciiDigits.Required(phone, 10, "Phone");
+        NationalId = AsciiDigits.Required(nationalId, 9, "National ID");
         IsManager = isManager;
     }
 

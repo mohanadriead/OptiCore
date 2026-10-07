@@ -26,7 +26,7 @@ dotnet user-secrets set "BootstrapManager:NationalId" "<national-id>" --project 
 dotnet run --project src/OptiCore.Api
 ```
 
-Environment equivalents use double underscores, for example `BootstrapManager__Password`. Production must use protected deployment configuration and HTTPS. Names/usernames are at most 100 characters, phone 30, NationalId 9. Username comparison is trim + invariant uppercase. No ID checksum or password composition rules are added. Passwords are not trimmed and must contain non-whitespace content, with length 8–128.
+Environment equivalents use double underscores, for example `BootstrapManager__Password`. Production must use protected deployment configuration and HTTPS. Names/usernames are at most 100 characters; Employee phone requires exactly 10 ASCII digits and NationalId exactly 9 ASCII digits after trimming, including for bootstrap. Username comparison is trim + invariant uppercase. No ID checksum or password composition rules are added. Passwords are not trimmed and must contain non-whitespace content, with length 8–128.
 
 Bootstrap acquires the same transaction lock as employee writes, then checks whether any employee exists. With an empty table, missing/invalid configuration fails startup with a value-free message. Valid configuration creates one active manager with a framework-generated password hash and a null creator (installation bootstrap). Once any employee exists, configuration is ignored, even if missing or changed. Remove the bootstrap secret values after successful initialization; subsequent startup does not need them. No fallback credentials exist. EF migration commands do not bootstrap employees.
 
@@ -68,6 +68,8 @@ All application employee writes (including bootstrap) use one READ COMMITTED tra
 `Employees` has a UUID primary key, database-generated identity-always EmployeeNumber, and unique indexes on EmployeeNumber, NormalizedUsername, and NationalId. Unique constraint violations are also translated at save time. Audit mappings match Customers. There are no normal-operation hard deletes or detailed permissions. The migration Down method is a normal EF schema rollback and is not an employee-removal API.
 
 ## Verification
+
+Customer creation/details updates validate NationalId (9 ASCII digits), MobilePhone (10 ASCII digits), optional HomePhone (blank/null or 9 ASCII digits), and canonical Gender (Male/Female), preserving trimming and optional normalization. Existing rows are not automatically repaired. Customer reads/search, including inactive records, remain unchanged. Storage types, column sizes, and API shapes are unchanged.
 
 ```powershell
 dotnet build OptiCore.slnx

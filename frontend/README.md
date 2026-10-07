@@ -65,8 +65,11 @@ frontend route fallback.
   email and date inputs use local LTR direction. Display dates use he-IL;
   date-only values are formatted without timezone shifts.
 - Query results remain in memory only. No customer data is stored in localStorage.
-- Required fields and string limits mirror the backend. National ID and gender
-  stay text fields; email has no extra format validation.
+- Customer IDs require 9 ASCII digits, mobile phones 10, and optional home phones 9.
+  Leading zeros and blank-to-null normalization are preserved; email has no extra format validation.
+- Gender uses mutually exclusive Hebrew radio labels mapped to Male/Female. DOB uses
+  controlled Hebrew day/month/year text inputs, calendar validation, and YYYY-MM-DD submission.
+  No native date input or browser-localized placeholder is used.
 - src/components/ui contains only the shadcn components used here, with local
   import and logical-alignment adjustments.
 

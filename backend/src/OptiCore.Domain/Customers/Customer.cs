@@ -60,6 +60,8 @@ public class Customer : AuditableEntity
             city,
             gender);
 
+        ValidateFormats(nationalId, mobilePhone, homePhone, gender);
+
         NationalId = nationalId.Trim();
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
@@ -94,6 +96,8 @@ public class Customer : AuditableEntity
             mobilePhone,
             city,
             gender);
+
+        ValidateFormats(NationalId, mobilePhone, homePhone, gender);
 
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
@@ -150,6 +154,15 @@ public class Customer : AuditableEntity
 
         if (string.IsNullOrWhiteSpace(gender))
             throw new ArgumentException("Gender is required.");
+    }
+
+    private static void ValidateFormats(string nationalId, string mobilePhone, string? homePhone, string gender)
+    {
+        AsciiDigits.Required(nationalId, 9, "National ID");
+        AsciiDigits.Required(mobilePhone, 10, "Mobile phone");
+        AsciiDigits.Optional(homePhone, 9, "Home phone");
+        if (gender.Trim() is not ("Male" or "Female"))
+            throw new ArgumentException("Gender must be Male or Female.");
     }
 
     private static string? NormalizeOptional(string? value)
