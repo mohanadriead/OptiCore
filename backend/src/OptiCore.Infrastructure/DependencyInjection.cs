@@ -21,6 +21,10 @@ public static class DependencyInjection
 
         services.AddScoped<OptiCore.Application.Customers.ICustomerRepository,
             OptiCore.Infrastructure.Persistence.Repositories.CustomerRepository>();
+        services.AddScoped<OptiCore.Application.Employees.IEmployeeRepository,
+            OptiCore.Infrastructure.Persistence.Repositories.EmployeeRepository>();
+        services.AddSingleton<OptiCore.Application.Employees.IPasswordHasher, Security.EmployeePasswordHasher>();
+        services.AddScoped<Security.BootstrapManager>();
 
         return services;
     }

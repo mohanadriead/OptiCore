@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\OptiCore.Api\OptiCore.Api.csproj" />
     <ProjectReference Include="..\..\src\OptiCore.Domain\OptiCore.Domain.csproj" />
     <ProjectReference Include="..\..\src\OptiCore.Application\OptiCore.Application.csproj" />
   </ItemGroup>
