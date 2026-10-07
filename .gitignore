@@ -480,3 +480,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local Codex files
+AGENTS.md
+CODEX_TASK_*.md
