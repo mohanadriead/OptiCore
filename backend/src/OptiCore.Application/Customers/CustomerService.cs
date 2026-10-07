@@ -8,14 +8,13 @@ public sealed class CustomerService(ICustomerRepository repository) : ICustomerS
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.NationalId);
         CheckLength(request.NationalId, 9, nameof(request.NationalId));
-        if (await repository.NationalIdExistsAsync(request.NationalId.Trim(), cancellationToken))
-            throw new DuplicateNationalIdException();
-
         CheckLengths(request.FirstName, request.LastName, request.MobilePhone, request.HomePhone,
             request.Email, request.City, request.Street, request.Gender, request.Notes);
         var customer = new Customer(request.NationalId, request.FirstName, request.LastName,
             request.DateOfBirth, request.MobilePhone, request.City, request.Gender, employeeId,
             request.HomePhone, request.Email, request.Street, request.Notes, request.WhatsAppConsent);
+        if (await repository.NationalIdExistsAsync(customer.NationalId, cancellationToken))
+            throw new DuplicateNationalIdException();
         await repository.AddAsync(customer, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
         return CustomerDto.FromCustomer(customer);

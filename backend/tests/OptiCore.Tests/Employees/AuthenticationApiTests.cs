@@ -139,7 +139,7 @@ public sealed class AuthenticationApiTests
         Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/customers/42")).StatusCode);
         var actor = host.Employees.Employees[1].Id;
         var request = new { nationalId = "987654321", firstName = "New", lastName = "Customer", dateOfBirth = "2000-01-01",
-            mobilePhone = "0501234567", city = "Haifa", gender = "Text", createdByEmployeeId = Guid.NewGuid() };
+            mobilePhone = "0501234567", city = "Haifa", gender = "Male", createdByEmployeeId = Guid.NewGuid() };
         Assert.Equal(HttpStatusCode.Created, (await host.Client.PostAsJsonAsync("/api/customers", request)).StatusCode);
         Assert.Equal(actor, host.Customers.Items.Last().CreatedByEmployeeId);
         Assert.Equal(HttpStatusCode.OK, (await host.Client.PutAsJsonAsync("/api/customers/42", request)).StatusCode);
@@ -148,6 +148,46 @@ public sealed class AuthenticationApiTests
         Assert.Equal(actor, host.Customers.Items[0].UpdatedByEmployeeId);
         Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PatchAsync("/api/customers/42/deactivate", null)).StatusCode);
         Assert.Equal(actor, host.Customers.Items[0].UpdatedByEmployeeId);
+    }
+
+    [Fact]
+    public async Task NewValidationReturnsSafeBadRequestsWithoutSaving()
+    {
+        await using var host = await ApiHost.StartAsync();
+        await host.LoginAsync();
+        foreach (var field in new[] { "nationalId", "mobilePhone", "homePhone", "gender" })
+        {
+            var request = new Dictionary<string, object>
+            {
+                ["nationalId"] = new string('0', 9), ["firstName"] = "First", ["lastName"] = "Last",
+                ["dateOfBirth"] = "2000-01-01", ["mobilePhone"] = new string('0', 10), ["homePhone"] = "",
+                ["city"] = "City", ["gender"] = "Female"
+            };
+            request[field] = "invalid-value";
+            using var response = await host.Client.PostAsJsonAsync("/api/customers", request);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.DoesNotContain("invalid-value", await response.Content.ReadAsStringAsync());
+            Assert.Single(host.Customers.Items);
+            if (field != "nationalId")
+            {
+                using var update = await host.Client.PutAsJsonAsync("/api/customers/42", request);
+                Assert.Equal(HttpStatusCode.BadRequest, update.StatusCode);
+                Assert.Null(host.Customers.Items[0].UpdatedAtUtc);
+            }
+        }
+        foreach (var field in new[] { "nationalId", "phone" })
+        {
+            var request = new Dictionary<string, object>
+            {
+                ["firstName"] = "First", ["lastName"] = "Last", ["username"] = "new-user", ["password"] = "Test-fixture-password",
+                ["nationalId"] = new string('0', 9), ["phone"] = new string('0', 10), ["isManager"] = false
+            };
+            request[field] = "invalid-value";
+            using var response = await host.Client.PostAsJsonAsync("/api/employees", request);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.DoesNotContain("invalid-value", await response.Content.ReadAsStringAsync());
+            Assert.Equal(2, host.Employees.Employees.Count);
+        }
     }
 
     [Fact]
@@ -210,7 +250,7 @@ public sealed class AuthenticationApiTests
 
     private sealed class TestCustomers : ICustomerRepository
     {
-        public List<Customer> Items { get; } = [new("123456789", "Test", "Customer", new DateOnly(2000, 1, 1), "0501234567", "Haifa", "Text", Guid.NewGuid())];
+        public List<Customer> Items { get; } = [new("123456789", "Test", "Customer", new DateOnly(2000, 1, 1), "0501234567", "Haifa", "Male", Guid.NewGuid())];
         public TestCustomers() => typeof(Customer).GetProperty(nameof(Customer.CustomerNumber))!.SetValue(Items[0], 42);
         public Task AddAsync(Customer item, CancellationToken ct) { Items.Add(item); return Task.CompletedTask; }
         public Task<bool> NationalIdExistsAsync(string id, CancellationToken ct) => Task.FromResult(Items.Any(e => e.NationalId == id));

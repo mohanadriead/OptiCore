@@ -19,7 +19,11 @@ it('translates optional-field length validation without changing the limit', () 
 it.each([
   ['First name is required.', 'שם פרטי: שדה זה הוא שדה חובה.'],
   ['email must be at most 254 characters.', 'דוא״ל: ניתן להזין עד 254 תווים.'],
-  ['Unexpected database detail', 'בדוק את הפרטים שהוזנו ונסה שוב.'],
+  ['Unexpected database detail', 'לא ניתן להשלים את הפעולה. נסה שוב.'],
+  ['National ID must contain exactly 9 ASCII digits.', 'תעודת זהות חייבת להכיל בדיוק 9 ספרות.'],
+  ['Mobile phone must contain exactly 10 ASCII digits.', 'טלפון נייד חייב להכיל בדיוק 10 ספרות.'],
+  ['Home phone must contain exactly 9 ASCII digits.', 'טלפון בבית חייב להכיל בדיוק 9 ספרות.'],
+  ['Gender must be Male or Female.', 'יש לבחור מגדר.'],
 ])('translates or safely replaces backend validation: %s', async (title, message) => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ title }), { status: 400 })))
   await expect(apiRequest('/api/customers')).rejects.toMatchObject({ status: 400, message })

@@ -38,7 +38,7 @@ export function CustomerDetailsPage() {
       <Card className="lg:col-span-2"><CardHeader><CardTitle>פרטי לקוח</CardTitle></CardHeader><CardContent><dl className="grid gap-6 sm:grid-cols-2">
         <Info label="תעודת זהות" ltr value={customer.nationalId} /><Info label="תאריך לידה" ltr value={formatDateOnly(customer.dateOfBirth)} />
         <Info label="טלפון נייד" ltr value={customer.mobilePhone} /><Info label="טלפון בבית" ltr value={customer.homePhone} />
-        <Info label="דוא״ל" ltr value={customer.email} /><Info label="מגדר" value={customer.gender} />
+        <Info label="דוא״ל" ltr value={customer.email} /><Info label="מגדר" value={customer.gender === 'Male' ? 'זכר' : customer.gender === 'Female' ? 'נקבה' : customer.gender} />
         <Info label="עיר" value={customer.city} /><Info label="רחוב" value={customer.street} />
         <div className="sm:col-span-2 border-t pt-5"><Info label="הערות" value={customer.notes} /></div>
       </dl></CardContent></Card>
