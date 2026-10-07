@@ -9,6 +9,11 @@ import { ApiError } from '@/lib/apiClient'
 import type { Customer } from '@/features/customers/types/customer'
 
 vi.mock('@/features/customers/api/customerApi')
+// Customer workflow tests run within an established Employee session. Auth/route
+// integration (including real API-client 401 handling) is covered separately.
+vi.mock('@/features/auth/authContext', () => ({ useAuth: () => ({
+  status: 'authenticated', employee: { id: 'employee-test', firstName: 'Test', lastName: 'Employee', isManager: false },
+}) }))
 const customer: Customer = {
   id: 'customer-1', customerNumber: 42, nationalId: '123456789', firstName: 'Ahmad', lastName: 'Ali',
   dateOfBirth: '1995-04-20', mobilePhone: '0501234567', homePhone: null, email: null,
@@ -26,9 +31,9 @@ async function fillForm(user: ReturnType<typeof userEvent.setup>) {
     ['טלפון נייד', '0501234567'], ['עיר', 'Haifa']]) {
     await user.type(screen.getByLabelText(name + ' *'), value)
   }
-  await user.type(screen.getByLabelText('יום'), '20')
-  await user.type(screen.getByLabelText('חודש'), '4')
-  await user.type(screen.getByLabelText('שנה'), '1995')
+  await user.selectOptions(screen.getByLabelText('יום'), '20')
+  await user.selectOptions(screen.getByLabelText('חודש'), '04')
+  await user.selectOptions(screen.getByLabelText('שנה'), '1995')
   await user.click(screen.getByRole('radio', { name: 'זכר' }))
 }
 beforeEach(() => {
@@ -175,18 +180,18 @@ describe('customer workflows', () => {
     expect(female).toBeChecked()
     expect(male).not.toBeChecked()
     for (const label of ['יום', 'חודש', 'שנה']) {
-      expect(screen.getByPlaceholderText(label)).toHaveAttribute('type', 'text')
-      expect(screen.getByLabelText(label)).toHaveAttribute('inputmode', 'numeric')
+      expect(screen.getByRole('combobox', { name: label })).toBeVisible()
     }
+    expect(screen.getAllByRole('combobox')).toHaveLength(3)
+    expect(within(screen.getByLabelText('יום')).getAllByRole('option')).toHaveLength(32)
+    expect(within(screen.getByLabelText('חודש')).getAllByRole('option')).toHaveLength(13)
     expect(document.querySelector('input[type="date"]')).toBeNull()
   })
   it('shows immediate Hebrew feedback and blocks impossible dates', async () => {
     const { user } = setup('/customers/new')
     await fillForm(user)
-    await user.clear(screen.getByLabelText('חודש'))
-    await user.type(screen.getByLabelText('חודש'), '2')
-    await user.clear(screen.getByLabelText('יום'))
-    await user.type(screen.getByLabelText('יום'), '31')
+    await user.selectOptions(screen.getByLabelText('חודש'), '02')
+    await user.selectOptions(screen.getByLabelText('יום'), '31')
     expect(await screen.findByText('יש להזין תאריך לידה תקין.')).toBeVisible()
     await user.type(screen.getByLabelText('טלפון בבית'), 'abc')
     expect(await screen.findByText('טלפון בבית חייב להכיל בדיוק 9 ספרות.')).toBeVisible()
@@ -198,6 +203,30 @@ describe('customer workflows', () => {
     setup('/customers/42/edit')
     expect(await screen.findByRole('radio', { name: 'נקבה' })).toBeChecked()
     expect(screen.getByRole('radio', { name: 'זכר' })).not.toBeChecked()
+  })
+  it.each(['typing', 'pasting'])('filters Customer National ID %s, preserves zeros and caps at nine', async method => {
+    const { user } = setup('/customers/new')
+    const input = screen.getByLabelText('תעודת זהות *')
+    expect(input).toHaveAttribute('type', 'text')
+    expect(input).toHaveAttribute('inputmode', 'numeric')
+    expect(input).toHaveAttribute('maxlength', '9')
+    await user.click(input)
+    if (method === 'typing') await user.type(input, 'abc٠١٢３４５')
+    else await user.paste('abc٠١٢３４５')
+    expect(input).toHaveValue('')
+    if (method === 'typing') await user.type(input, '00abc123456789')
+    else await user.paste('00abc٠١٢３４５123456789')
+    expect(input).toHaveValue('001234567')
+  })
+  it('retains an existing DOB year outside the suggested range without changing date rules', async () => {
+    vi.mocked(api.getCustomerByNumber).mockResolvedValue({ ...customer, dateOfBirth: '0001-01-02' })
+    vi.mocked(api.updateCustomer).mockResolvedValue({ ...customer, dateOfBirth: '0001-01-02' })
+    const { user } = setup('/customers/42/edit')
+    expect(await screen.findByRole('combobox', { name: 'שנה' })).toHaveValue('0001')
+    expect(screen.getByLabelText('חודש')).toHaveValue('01')
+    expect(screen.getByLabelText('יום')).toHaveValue('02')
+    await user.click(screen.getByRole('button', { name: 'שמירת שינויים' }))
+    await waitFor(() => expect(api.updateCustomer).toHaveBeenCalledWith(42, expect.objectContaining({ dateOfBirth: '0001-01-02' })))
   })
   it('explains a legacy invalid immutable ID instead of silently blocking edit', async () => {
     vi.mocked(api.getCustomerByNumber).mockResolvedValue({ ...customer, nationalId: 'legacy-invalid' })

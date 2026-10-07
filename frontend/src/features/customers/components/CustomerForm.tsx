@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { createSchema, emptyValues, type CustomerFormValues } from '../schemas/customerSchemas'
 import { DateOfBirthInput } from './DateOfBirthInput'
+import { digitInputHandlers } from '@/lib/digitInput'
 
 const fields: { name: Exclude<keyof CustomerFormValues, 'whatsAppConsent'>; label: string; max?: number; required?: boolean; type?: string }[] = [
   { name: 'nationalId', label: 'תעודת זהות', max: 9, required: true },
@@ -40,6 +41,7 @@ export function CustomerForm({ initial, editing = false, pending, onSave, cancel
               </fieldset></FormControl> : <><FormLabel>{label}{required ? ' *' : ''}</FormLabel>
               <FormControl>{name === 'notes' ? <Textarea {...field} maxLength={max} rows={3} /> :
                 <Input {...field} dir={['nationalId', 'mobilePhone', 'homePhone', 'email'].includes(name) ? 'ltr' : undefined}
+                  {...(name === 'nationalId' ? digitInputHandlers(9, field.onChange) : {})}
                   inputMode={['nationalId', 'mobilePhone', 'homePhone'].includes(name) ? 'numeric' : undefined}
                   type={type ?? 'text'} maxLength={max} aria-required={required} />}</FormControl></>}
             <FormMessage />

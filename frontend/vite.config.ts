@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-    server: { proxy: { '/api': { target, changeOrigin: true }, '/health': { target, changeOrigin: true } } },
+    // Preserve the browser Host so the backend can compare it to Origin for CSRF protection.
+    server: { proxy: { '/api': { target, changeOrigin: false }, '/health': { target, changeOrigin: false } } },
   }
 })

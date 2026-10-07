@@ -1,18 +1,15 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { developmentActor } from '@/lib/developmentActor'
 import { apiRequest } from '@/lib/apiClient'
+import { discardSessionRequests, onSessionInvalidated } from '@/lib/sessionEvents'
 import { searchCustomers, createCustomer } from '@/features/customers/api/customerApi'
 
 beforeEach(() => { localStorage.clear() })
-it('generates a stable nonempty UUID per development browser', () => {
-  vi.stubEnv('DEV', true)
-  const value = developmentActor()
-  expect(value).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
-  expect(developmentActor()).toBe(value)
-})
-it('does not invent an actor in a production build', () => {
-  vi.stubEnv('DEV', false)
-  expect(() => developmentActor()).toThrow('הזדהות')
+it.each([true, false])('uses browser cookies without inventing identity (DEV=%s)', async development => {
+  vi.stubEnv('DEV', development)
+  const fetch = vi.fn().mockResolvedValue(new Response('{}'))
+  vi.stubGlobal('fetch', fetch)
+  await apiRequest('/api/customers')
+  expect(fetch).toHaveBeenCalledWith('/api/customers', { credentials: 'same-origin' })
   expect(localStorage.length).toBe(0)
 })
 it('handles 204 responses', async () => {
@@ -68,7 +65,20 @@ it('preserves AbortError identity', async () => {
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abort))
   await expect(apiRequest('/api/resource')).rejects.toBe(abort)
 })
-it('attaches actor only to customer mutations', async () => {
+it('ignores a stale 401 instead of invalidating the next session', async () => {
+  let resolve!: (response: Response) => void
+  vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => { resolve = done })))
+  const invalidated = vi.fn()
+  const unsubscribe = onSessionInvalidated(invalidated)
+  try {
+    const request = apiRequest('/api/resource')
+    discardSessionRequests()
+    resolve(new Response(null, { status: 401 }))
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' })
+    expect(invalidated).not.toHaveBeenCalled()
+  } finally { unsubscribe() }
+})
+it('never attaches a development actor to customer mutations', async () => {
   vi.stubEnv('DEV', true)
   const fetch = vi.fn().mockResolvedValue(new Response('[]'))
   vi.stubGlobal('fetch', fetch)
@@ -77,5 +87,6 @@ it('attaches actor only to customer mutations', async () => {
   fetch.mockResolvedValue(new Response('{}'))
   await createCustomer({ nationalId: '123', firstName: 'A', lastName: 'B', dateOfBirth: '2000-01-01',
     mobilePhone: '123', city: 'City', gender: 'Text', homePhone: null, email: null, street: null, notes: null, whatsAppConsent: false })
-  expect(fetch.mock.calls[1][1].headers['X-Employee-Id']).toBe(developmentActor())
+  expect(fetch.mock.calls[1][1].headers).toEqual({ 'Content-Type': 'application/json' })
+  expect(localStorage.length).toBe(0)
 })
