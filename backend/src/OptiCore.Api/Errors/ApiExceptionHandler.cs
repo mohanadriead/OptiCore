@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Diagnostics;
 using OptiCore.Application.Customers;
+using OptiCore.Application.Employees;
 
-namespace OptiCore.Api.Endpoints.Customers;
+namespace OptiCore.Api.Errors;
 
-public sealed class CustomerExceptionHandler : IExceptionHandler
+public sealed class ApiExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken cancellationToken)
     {
@@ -11,12 +12,17 @@ public sealed class CustomerExceptionHandler : IExceptionHandler
         {
             CustomerNotFoundException => (StatusCodes.Status404NotFound, "Customer was not found."),
             DuplicateNationalIdException => (StatusCodes.Status409Conflict, "A customer with this NationalId already exists."),
+            EmployeeNotFoundException => (404, "Employee was not found."),
+            InvalidCredentialsException => (401, "Invalid username or password."),
+            InactiveEmployeeException => (403, "Employee is inactive."),
+            ManagerRequiredException => (403, "Manager authorization is required."),
+            DuplicateUsernameException => (409, "Username already exists."),
+            DuplicateEmployeeNationalIdException => (409, "An employee with this NationalId already exists."),
+            LastActiveManagerException => (409, "At least one active manager must remain."),
             ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),
             BadHttpRequestException => (StatusCodes.Status400BadRequest, "Invalid request body or parameters."),
-            _ => (0, "")
+            _ => (500, "Unable to complete the request.")
         };
-        if (status == 0)
-            return false;
 
         await Results.Problem(statusCode: status, title: message).ExecuteAsync(context);
         return true;

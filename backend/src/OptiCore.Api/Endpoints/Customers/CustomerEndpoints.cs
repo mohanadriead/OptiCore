@@ -1,3 +1,4 @@
+using OptiCore.Api.Security;
 using OptiCore.Application.Customers;
 
 namespace OptiCore.Api.Endpoints.Customers;
@@ -6,12 +7,12 @@ public static class CustomerEndpoints
 {
     public static IEndpointRouteBuilder MapCustomerEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/customers");
+        var group = app.MapGroup("/api/customers").RequireAuthorization("Employee");
 
         group.MapPost("", async (CreateCustomerRequest request, HttpContext context,
             ICustomerService service, CancellationToken cancellationToken) =>
         {
-            var customer = await service.CreateCustomerAsync(request, EmployeeIdHeader.Read(context), cancellationToken);
+            var customer = await service.CreateCustomerAsync(request, CurrentEmployee.Read(context), cancellationToken);
             return Results.Created($"/api/customers/{customer.CustomerNumber}", customer);
         });
 
@@ -28,16 +29,16 @@ public static class CustomerEndpoints
 
         group.MapPut("/{customerNumber:int}", async (int customerNumber, UpdateCustomerRequest request,
             HttpContext context, ICustomerService service, CancellationToken cancellationToken) =>
-            Results.Ok(await service.UpdateCustomerAsync(customerNumber, request, EmployeeIdHeader.Read(context), cancellationToken)));
+            Results.Ok(await service.UpdateCustomerAsync(customerNumber, request, CurrentEmployee.Read(context), cancellationToken)));
 
         group.MapPatch("/{customerNumber:int}/whatsapp-consent", async (int customerNumber,
             SetWhatsAppConsentRequest request, HttpContext context, ICustomerService service, CancellationToken cancellationToken) =>
-            Results.Ok(await service.SetWhatsAppConsentAsync(customerNumber, request.Consent, EmployeeIdHeader.Read(context), cancellationToken)));
+            Results.Ok(await service.SetWhatsAppConsentAsync(customerNumber, request.Consent, CurrentEmployee.Read(context), cancellationToken)));
 
         group.MapPatch("/{customerNumber:int}/deactivate", async (int customerNumber,
             HttpContext context, ICustomerService service, CancellationToken cancellationToken) =>
         {
-            await service.DeactivateCustomerAsync(customerNumber, EmployeeIdHeader.Read(context), cancellationToken);
+            await service.DeactivateCustomerAsync(customerNumber, CurrentEmployee.Read(context), cancellationToken);
             return Results.NoContent();
         });
 
