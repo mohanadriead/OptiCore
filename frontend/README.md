@@ -28,6 +28,10 @@ in frontend environment variables.
 
 Open the Vite URL and sign in at /login with your existing Employee account.
 Managers also have /employees; every employee can use /change-password.
+Managers can open `הרשאות` on an Employee row to manage assignments. Manager targets
+automatically have all configurable permissions and appear read-only in this dialog.
+See [permissions foundation](../docs/PERMISSIONS_FOUNDATION.md) for endpoints, the
+`usePermissions()` hook and the unapplied migration prerequisite.
 Customer search is explicit: enter a query and
 press Search or Enter. Blank searches do not contact the backend. Customer
 search, details, creation, editing, consent and deactivation are functional.
@@ -68,7 +72,7 @@ automated tests use synthetic input only.
 
 ## Implementation notes
 
-- Source lives in app/, components/ and features/customers/, features/auth/, features/employees/.
+- Source lives in app/, components/ and features/customers/, features/auth/, features/employees/, features/permissions/.
 - Hebrew/RTL is the default presentation, centralized in src/app/direction.ts
   and the document language. No translation framework is included. IDs, phones,
   email and date inputs use local LTR direction. Display dates use he-IL;

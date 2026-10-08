@@ -5,6 +5,7 @@ using OptiCore.Application;
 using OptiCore.Api.Endpoints.Customers;
 using OptiCore.Api.Endpoints.Auth;
 using OptiCore.Api.Endpoints.Employees;
+using OptiCore.Api.Endpoints.Permissions;
 using OptiCore.Api.Security;
 using OptiCore.Infrastructure.Security;
 
@@ -25,6 +26,7 @@ app.UseAuthorization();
 app.MapAuthEndpoints();
 app.MapEmployeeEndpoints();
 app.MapCustomerEndpoints();
+app.MapPermissionEndpoints();
 
 app.MapGet("/health", () =>
 {

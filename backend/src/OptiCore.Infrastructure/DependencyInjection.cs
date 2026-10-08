@@ -25,6 +25,8 @@ public static class DependencyInjection
             OptiCore.Infrastructure.Persistence.Repositories.EmployeeRepository>();
         services.AddSingleton<OptiCore.Application.Employees.IPasswordHasher, Security.EmployeePasswordHasher>();
         services.AddScoped<Security.BootstrapManager>();
+        services.AddScoped<OptiCore.Application.Permissions.IEmployeePermissionRepository,
+            Persistence.Repositories.EmployeePermissionRepository>();
 
         return services;
     }
