@@ -15,6 +15,9 @@ using OptiCore.Application.Customers;
 using OptiCore.Application.Employees;
 using OptiCore.Domain.Customers;
 using OptiCore.Infrastructure.Security;
+using OptiCore.Api.Endpoints.Permissions;
+using OptiCore.Application.Permissions;
+using OptiCore.Tests.Permissions;
 
 namespace OptiCore.Tests.Employees;
 
@@ -205,7 +208,7 @@ public sealed class AuthenticationApiTests
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/auth/login", new { username = "manager" })).StatusCode);
     }
 
-    private sealed class ApiHost : IAsyncDisposable
+    internal sealed class ApiHost : IAsyncDisposable
     {
         private readonly WebApplication app;
         public HttpClient Client { get; }
@@ -230,6 +233,7 @@ public sealed class AuthenticationApiTests
             employees.Seed(); employees.Seed("employee", false, "222222222");
             var customers = new TestCustomers();
             builder.Services.AddSingleton<IEmployeeRepository>(employees);
+            builder.Services.AddSingleton<IEmployeePermissionRepository>(new FakeEmployeePermissionRepository(employees));
             builder.Services.AddSingleton<IPasswordHasher, EmployeePasswordHasher>();
             builder.Services.AddSingleton<ICustomerRepository>(customers);
             builder.Services.AddEmployeeAuthentication(true);
@@ -240,6 +244,7 @@ public sealed class AuthenticationApiTests
             app.UseMiddleware<SameOriginRequests>();
             app.UseAuthentication(); app.UseAuthorization();
             app.MapAuthEndpoints(); app.MapEmployeeEndpoints(); app.MapCustomerEndpoints();
+            app.MapPermissionEndpoints();
             await app.StartAsync();
             return new ApiHost(app, employees, customers);
         }
@@ -248,7 +253,7 @@ public sealed class AuthenticationApiTests
         public async ValueTask DisposeAsync() { Client.Dispose(); await app.StopAsync(); await app.DisposeAsync(); }
     }
 
-    private sealed class TestCustomers : ICustomerRepository
+    internal sealed class TestCustomers : ICustomerRepository
     {
         public List<Customer> Items { get; } = [new("123456789", "Test", "Customer", new DateOnly(2000, 1, 1), "0501234567", "Haifa", "Male", Guid.NewGuid())];
         public TestCustomers() => typeof(Customer).GetProperty(nameof(Customer.CustomerNumber))!.SetValue(Items[0], 42);

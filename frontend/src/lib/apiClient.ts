@@ -11,6 +11,8 @@ const validationFields: Record<string, string> = {
   city: 'עיר', street: 'רחוב', gender: 'מגדר', notes: 'הערות', username: 'שם משתמש', phone: 'טלפון',
 }
 const knownErrors = new Map<string, string>([
+  ['400:Unknown permission code.', 'אחת ההרשאות אינה מוכרת. רענן את הרשימה ונסה שוב.'],
+  ['400:Permissions are required.', 'יש לשלוח רשימת הרשאות.'],
   ['409:A customer with this NationalId already exists.', 'לקוח עם תעודת זהות זו כבר קיים במערכת.'],
   ['404:Customer was not found.', 'הלקוח לא נמצא. בדוק את מספר הלקוח או חזור לחיפוש.'],
   ['404:Employee was not found.', 'העובד לא נמצא.'],

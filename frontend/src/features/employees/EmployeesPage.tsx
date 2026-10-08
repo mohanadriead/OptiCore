@@ -8,6 +8,7 @@ import { ApiError, errorMessage } from '@/lib/apiClient'
 import { useAuth } from '../auth/authContext'
 import { PasswordForm } from '../auth/PasswordForm'
 import { deactivateEmployee, listEmployees, resetEmployeePassword, setManagerStatus, type Employee } from './employeeApi'
+import { EmployeePermissionsDialog } from '../permissions/EmployeePermissionsDialog'
 
 type Action = { employee: Employee; kind: 'deactivate' | 'role' | 'password' }
 export function EmployeesPage() {
@@ -17,6 +18,7 @@ export function EmployeesPage() {
   const [action, setAction] = useState<Action | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
+  const [permissionTarget, setPermissionTarget] = useState<Employee | null>(null)
   const { refresh } = auth
   useEffect(() => {
     if (result.error instanceof ApiError && result.error.status === 403) void refresh()
@@ -39,6 +41,7 @@ export function EmployeesPage() {
         <td className="p-3"><bdi dir="ltr">{employee.username}</bdi></td><td className="p-3"><bdi dir="ltr">{employee.phone}</bdi></td><td className="p-3"><bdi dir="ltr">{employee.nationalId}</bdi></td>
         <td className="whitespace-nowrap p-3">{employee.isActive ? 'פעיל' : 'לא פעיל'}</td><td className="p-3">{employee.isManager ? 'מנהל' : 'עובד'}</td>
         <td className="p-3"><div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setPermissionTarget(employee)}>הרשאות</Button>
           <Button variant="outline" disabled={!employee.isActive} onClick={() => { setError(''); setAction({ employee, kind: 'deactivate' }) }}>השבתה</Button>
           <Button variant="outline" onClick={() => { setError(''); setAction({ employee, kind: 'role' }) }}>{employee.isManager ? 'הסרת ניהול' : 'מינוי למנהל'}</Button>
           {employee.id !== auth.employee?.id && <Button variant="outline" onClick={() => { setError(''); setAction({ employee, kind: 'password' }) }}>איפוס סיסמה</Button>}
@@ -65,5 +68,6 @@ export function EmployeesPage() {
         </>}
       </DialogContent>}
     </Dialog>
+    {permissionTarget && <EmployeePermissionsDialog key={permissionTarget.id} employee={permissionTarget} onClose={() => setPermissionTarget(null)} />}
   </div>
 }
