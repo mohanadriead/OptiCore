@@ -8,6 +8,14 @@ public static class AttendanceEndpoints
     public static IEndpointRouteBuilder MapAttendanceEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/attendance").RequireAuthorization("Employee");
+        // Identity comes exclusively from the authenticated server-side employee ID.
+        var self = group.MapGroup("/me");
+        self.MapGet("/status", async (HttpContext context, IAttendanceService service, CancellationToken ct) =>
+            Results.Ok(await service.SelfStatusAsync(CurrentEmployee.Read(context), ct)));
+        self.MapPost("/check-in", async (HttpContext context, IAttendanceService service, CancellationToken ct) =>
+            Results.Ok(await service.SelfCheckInAsync(CurrentEmployee.Read(context), ct)));
+        self.MapPost("/check-out", async (HttpContext context, IAttendanceService service, CancellationToken ct) =>
+            Results.Ok(await service.SelfCheckOutAsync(CurrentEmployee.Read(context), ct)));
         group.MapGet("/{employeeNumber:int}/status", async (int employeeNumber, HttpContext context,
             IAttendanceService service, CancellationToken ct) =>
             Results.Ok(await service.StatusAsync(employeeNumber, CurrentEmployee.Read(context), ct)));

@@ -35,17 +35,24 @@ public sealed class AttendanceCorrectionTests
     }
 
     [Fact]
-    public async Task RegularEmployeeCanCheckInAndOutForAnotherEmployeeWithoutManagerRole()
+    public async Task RegularEmployeeCanManageSelfButCannotResolveAnotherEmployee()
     {
         var (service, records, manager, subjectNumber) = await Open();
         var subject = employees.Employees[1];
-        var checkIn = await service.CheckInAsync(1, subject.Id, default);
-        Assert.Equal(manager, checkIn.EmployeeId);
-        Assert.Equal(subject.Id, checkIn.CreatedByEmployeeId);
-        var checkOut = await service.CheckOutAsync(1, subject.Id, default);
+        foreach (var number in new[] { 1, 999 })
+        {
+            await Assert.ThrowsAsync<ManagerRequiredException>(() => service.StatusAsync(number, subject.Id, default));
+            await Assert.ThrowsAsync<ManagerRequiredException>(() => service.CheckInAsync(number, subject.Id, default));
+            await Assert.ThrowsAsync<ManagerRequiredException>(() => service.CheckOutAsync(number, subject.Id, default));
+        }
+        Assert.True((await service.SelfStatusAsync(subject.Id, default)).HasOpenAttendance);
+        var checkOut = await service.SelfCheckOutAsync(subject.Id, default);
         Assert.Equal(subject.Id, checkOut.UpdatedByEmployeeId);
         Assert.Equal(clock.Now, checkOut.CheckOutAtUtc);
-        Assert.True((await service.StatusAsync(subjectNumber, subject.Id, default)).HasOpenAttendance);
+        Assert.False((await service.StatusAsync(subjectNumber, subject.Id, default)).HasOpenAttendance);
+        var checkIn = await service.SelfCheckInAsync(subject.Id, default);
+        Assert.Equal(subject.Id, checkIn.EmployeeId);
+        Assert.Equal(subject.Id, checkIn.CreatedByEmployeeId);
         Assert.Equal(2, records.Rows.Count);
     }
 

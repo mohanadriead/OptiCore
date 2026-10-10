@@ -35,10 +35,10 @@ public sealed class AttendanceServiceTests
     {
         var actor = employees.Seed();
         var subject = employees.Seed("subject", false, "222222222");
-        var entry = await Service.CheckInAsync(actor.EmployeeNumber, subject.Id, default);
-        Assert.Equal(actor.Id, entry.EmployeeId);
+        var entry = await Service.CheckInAsync(subject.EmployeeNumber, subject.Id, default);
+        Assert.Equal(subject.Id, entry.EmployeeId);
         Assert.Equal(subject.Id, entry.CreatedByEmployeeId);
-        await Service.CheckOutAsync(actor.EmployeeNumber, subject.Id, default);
+        await Service.CheckOutAsync(subject.EmployeeNumber, subject.Id, default);
         await Assert.ThrowsAsync<EmployeeNotFoundException>(() => Service.CheckInAsync(999, actor.Id, default));
         subject.Deactivate(actor.Id);
         await Assert.ThrowsAsync<InactiveAttendanceEmployeeException>(() => Service.CheckInAsync(subject.EmployeeNumber, actor.Id, default));

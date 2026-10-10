@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { ApiError, errorMessage } from '@/lib/apiClient'
 import { useAuth } from '@/features/auth/authContext'
 import { correctAttendance, getAttendanceDetails, getAttendanceHistory, type AttendanceDetails, type AttendanceFilters } from './attendanceApi'
@@ -14,6 +15,7 @@ export function AttendanceManagementPage() {
   const [filters, setFilters] = useState(draft)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
   const [validation, setValidation] = useState('')
   const [saved, setSaved] = useState(false)
   const history = useQuery({ queryKey: ['attendance', 'history', filters, page], retry: false,
@@ -50,7 +52,10 @@ export function AttendanceManagementPage() {
           <td className="p-2">{row.firstName} {row.lastName} ({row.employeeNumber})</td>
           <td className="p-2">{attendanceTime(row.checkInAtUtc)}</td><td className="p-2">{attendanceTime(row.checkOutAtUtc)}</td>
           <td className="p-2">{row.wasCheckoutAutomatic ? 'אוטומטית בחצות' : row.checkOutAtUtc ? 'ידנית' : 'פתוחה'}</td>
-          <td className="p-2"><Button variant="outline" onClick={() => { setSelected(row.id); setSaved(false) }} aria-label={`פתיחת רשומה של ${row.firstName} ${row.lastName}`}>פתיחה</Button></td>
+          <td className="p-2"><div className="flex gap-2">
+            <Button onClick={() => { setSelected(row.id); setEditing(true); setSaved(false) }} aria-label={`עריכה של ${row.firstName} ${row.lastName}`}>עריכה</Button>
+            <Button variant="outline" onClick={() => { setSelected(row.id); setEditing(false); setSaved(false) }} aria-label={`פתיחת רשומה של ${row.firstName} ${row.lastName}`}>פתיחה</Button>
+          </div></td>
         </tr>)}</tbody>
       </table></div>}
       <div className="flex items-center gap-3"><Button disabled={page === 1 || history.isFetching} onClick={() => { setPage(page - 1); setSelected(null); setSaved(false) }}>הקודם</Button>
@@ -61,41 +66,55 @@ export function AttendanceManagementPage() {
       <Button variant="outline" onClick={() => { setSelected(null); setSaved(false) }}>סגירת פרטים</Button>
       {details.isPending && <p role="status">טוען פרטי רשומה…</p>}
       {details.error && <><p role="alert">{errorMessage(details.error)}</p><Button onClick={() => void details.refetch()}>טעינה מחדש</Button></>}
-      {details.data && <CorrectionForm key={`${details.data.record.id}:${details.data.record.updatedAtUtc}`} details={details.data} onSaved={() => setSaved(true)} />}
+      {details.data && <CorrectionForm key={`${details.data.record.id}:${details.data.record.updatedAtUtc}:${editing}`} details={details.data}
+        editing={editing} onCancel={() => setEditing(false)} onEdit={() => { setEditing(true); setSaved(false) }} onSaved={() => { setSaved(true); setEditing(false) }} />}
     </section>}
   </div>
 }
 
-function CorrectionForm({ details, onSaved }: { details: AttendanceDetails; onSaved: () => void }) {
+function CorrectionForm({ details, editing, onCancel, onEdit, onSaved }: {
+  details: AttendanceDetails; editing: boolean; onCancel: () => void; onEdit: () => void; onSaved: () => void
+}) {
   const { record, corrections } = details
   const auth = useAuth()
   const client = useQueryClient()
-  const [checkIn, setCheckIn] = useState(israelInput(record.checkInAtUtc))
-  const [checkOut, setCheckOut] = useState(israelInput(record.checkOutAtUtc))
+  const [checkIn, setCheckIn] = useState(israelInput(record.checkInAtUtc).slice(0, 16))
+  const [checkOut, setCheckOut] = useState(israelInput(record.checkOutAtUtc).slice(0, 16))
+  const [confirmation, setConfirmation] = useState<{ start: string; end: string | null; reason: string } | null>(null)
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const request = useRef<AbortController | null>(null)
   useEffect(() => () => request.current?.abort(), [])
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault()
     if (request.current) return
     setError('')
     if (!reason.trim() || reason.trim().length > 2000) { setError('סיבת התיקון נדרשת ועד 2000 תווים.'); return }
+    if (!/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(checkIn) ||
+      (checkOut && !/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(checkOut))) {
+      setError('יש להזין תאריך ושעה תקינים בפורמט HH:mm לפי שעון ישראל.'); return
+    }
     let start: string | null, end: string | null
     try { start = israelUtc(checkIn, record.checkInAtUtc); end = israelUtc(checkOut, record.checkOutAtUtc) }
     catch { setError('יש להזין זמן תקין לפי שעון ישראל.'); return }
     if (!start || (end && new Date(end) < new Date(start))) { setError('היציאה חייבת להיות לאחר הכניסה.'); return }
+    setConfirmation({ start, end, reason: reason.trim() })
+  }
+  async function save() {
+    if (!confirmation || request.current) return
     const controller = new AbortController(); request.current = controller; setPending(true)
     try {
-      const updated = await correctAttendance(record, start, end, reason.trim(), controller.signal)
+      const updated = await correctAttendance(record, confirmation.start, confirmation.end, confirmation.reason, controller.signal)
       if (controller.signal.aborted) return
-      onSaved()
       client.setQueryData(['attendance', 'details', record.id], updated)
       void client.invalidateQueries({ queryKey: ['attendance', 'history'] })
+      void client.invalidateQueries({ queryKey: ['attendance', 'details', record.id] })
+      onSaved()
     } catch (failure) {
       if (controller.signal.aborted || (failure instanceof Error && failure.name === 'AbortError')) return
       setError(errorMessage(failure))
+      setConfirmation(null)
       if (failure instanceof ApiError && failure.status === 403) await auth.refresh()
     } finally { if (!controller.signal.aborted) { request.current = null; setPending(false) } }
   }
@@ -107,16 +126,32 @@ function CorrectionForm({ details, onSaved }: { details: AttendanceDetails; onSa
       <dt>גבול חצות</dt><dd>{attendanceTime(record.automaticCheckoutDueAtUtc)}</dd>
       <dt>זמן עיבוד יציאה</dt><dd>{attendanceTime(record.checkoutProcessedAtUtc)}</dd>
     </dl>
-    <form onSubmit={submit} noValidate aria-busy={pending} className="space-y-3">
+    {!editing && <Button onClick={onEdit}>עריכה</Button>}
+    {editing && <form onSubmit={submit} noValidate aria-label="עריכת נוכחות" aria-busy={pending} className="space-y-3">
       <h3>תיקון נוכחות</h3><p>הזמנים לפי שעון ישראל. בשעה חוזרת במעבר לשעון חורף, זמן חדש מתייחס למופע הראשון.</p>
-      <label className="block">זמן כניסה<Input type="datetime-local" step="1" required disabled={pending} value={checkIn} onChange={event => setCheckIn(event.target.value)} /></label>
-      <label className="block">זמן יציאה<Input type="datetime-local" step="1" disabled={pending} value={checkOut} onChange={event => setCheckOut(event.target.value)} /></label>
+      <AttendanceTimeFields label="כניסה" value={checkIn} disabled={pending} onChange={setCheckIn} />
+      <AttendanceTimeFields label="יציאה" value={checkOut} disabled={pending} onChange={setCheckOut} />
       <p>להוספת יציאה חסרה מלאו את זמן היציאה. לא ניתן לפתוח מחדש רשומה סגורה או לקבוע יציאה לאחר חצות.</p>
       <label className="block">סיבת התיקון<Textarea required maxLength={2000} disabled={pending} value={reason} onChange={event => setReason(event.target.value)} /></label>
-      <Button type="submit" disabled={pending}>שמירת תיקון</Button>
+      <Button type="submit" disabled={pending}>שמירת שינויים</Button>
+      <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>ביטול</Button>
       <Button type="button" variant="outline" disabled={pending} onClick={() => void client.invalidateQueries({ queryKey: ['attendance', 'details', record.id] })}>טעינה מחדש</Button>
       {pending && <p role="status">שומר תיקון…</p>}{error && <p role="alert">{error}</p>}
-    </form>
+    </form>}
+    <Dialog open={confirmation !== null} onOpenChange={open => { if (!open && !pending) setConfirmation(null) }}>
+      <DialogContent dir="rtl" showCloseButton={!pending} onEscapeKeyDown={event => { if (pending) event.preventDefault() }} onPointerDownOutside={event => { if (pending) event.preventDefault() }}>
+        <DialogHeader><DialogTitle>אישור שמירת שינויים</DialogTitle>
+          <DialogDescription>השינויים יישמרו עם סיבת התיקון בהיסטוריית התיקונים של {record.firstName} {record.lastName}.</DialogDescription></DialogHeader>
+        {confirmation && <div className="space-y-2">
+          <p>שעת כניסה: {attendanceTime(confirmation.start)}</p>
+          <p>שעת יציאה: {attendanceTime(confirmation.end)}</p>
+          <p className="whitespace-pre-wrap">סיבת התיקון: {confirmation.reason}</p>
+        </div>}
+        <DialogFooter><Button disabled={pending} onClick={() => void save()}>אישור ושמירה</Button>
+          <Button variant="outline" disabled={pending} onClick={() => setConfirmation(null)}>ביטול</Button></DialogFooter>
+        {pending && <p role="status">שומר תיקון…</p>}
+      </DialogContent>
+    </Dialog>
     <h3>היסטוריית תיקונים</h3>
     {corrections.length === 0 ? <p>אין תיקונים לרשומה זו.</p> : <ol className="space-y-3">{corrections.map((correction, index) => <li key={index} className="rounded border p-3">
       <p>{correction.correctedByFirstName} {correction.correctedByLastName} ({correction.correctedByEmployeeNumber}) · {attendanceTime(correction.correctedAtUtc)}</p>
@@ -125,4 +160,16 @@ function CorrectionForm({ details, onSaved }: { details: AttendanceDetails; onSa
       <p>יציאה קודמת: {attendanceTime(correction.previousCheckOutAtUtc)} · יציאה חדשה: {attendanceTime(correction.newCheckOutAtUtc)}</p>
     </li>)}</ol>}
   </>
+}
+
+function AttendanceTimeFields({ label, value, disabled, onChange }: {
+  label: string; value: string; disabled: boolean; onChange: (value: string) => void
+}) {
+  const [date = '', time = ''] = value.split('T')
+  return <div className="grid gap-3 sm:grid-cols-2">
+    <label>תאריך {label}<Input type="date" dir="ltr" autoFocus={label === 'כניסה'} disabled={disabled} value={date}
+      onChange={event => onChange(event.target.value || time ? `${event.target.value}T${time}` : '')} /></label>
+    <label>שעת {label}<Input type="text" dir="ltr" inputMode="numeric" placeholder="HH:mm" maxLength={5} disabled={disabled} value={time}
+      onChange={event => onChange(date || event.target.value ? `${date}T${event.target.value}` : '')} /></label>
+  </div>
 }

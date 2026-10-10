@@ -23,24 +23,39 @@ namespace OptiCore.Tests.Attendance;
 
 public sealed class AttendanceApiTests
 {
-    [Theory]
-    [InlineData("employee", 3)]
-    [InlineData("manager", 1)]
-    public async Task ActiveEmployeesAndManagersUseSubjectNumberIndependentlyOfActor(string username, int actorNumber)
+    [Fact]
+    public async Task ManagerUsesSubjectNumberIndependentlyOfActor()
     {
+        const int actorNumber = 1;
         await using var fixture = await Fixture.Start();
-        await fixture.Login(username);
+        await fixture.Login("manager");
         var client = fixture.Client;
+        var before = (await client.GetFromJsonAsync<AttendanceStatusDto>("/api/attendance/2/status"))!;
+        Assert.Equal(2, before.EmployeeNumber);
+        Assert.Equal("First", before.FirstName);
+        Assert.Equal("Last", before.LastName);
+        Assert.False(before.HasOpenAttendance);
         using var entered = await client.PostAsync("/api/attendance/2/check-in", null);
         Assert.Equal(HttpStatusCode.OK, entered.StatusCode);
         var dto = (await entered.Content.ReadFromJsonAsync<AttendanceDto>())!;
         Assert.Equal(fixture.Employees.Employees[1].Id, dto.EmployeeId);
         Assert.Equal(fixture.Employees.Employees[actorNumber - 1].Id, dto.CreatedByEmployeeId);
+        var afterEntry = (await client.GetFromJsonAsync<AttendanceStatusDto>("/api/attendance/2/status"))!;
+        Assert.True(afterEntry.HasOpenAttendance);
+        Assert.Equal(dto.CheckInAtUtc, afterEntry.CheckInAtUtc);
+        Assert.Equal(before.FirstName, afterEntry.FirstName);
+        Assert.Equal(before.LastName, afterEntry.LastName);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync("/api/attendance/2/check-in", null)).StatusCode);
         using var exited = await client.PostAsync("/api/attendance/2/check-out", null);
         Assert.Equal(HttpStatusCode.OK, exited.StatusCode);
         var closed = (await exited.Content.ReadFromJsonAsync<AttendanceDto>())!;
         Assert.Equal(fixture.Employees.Employees[actorNumber - 1].Id, closed.UpdatedByEmployeeId);
+        var afterExit = (await client.GetFromJsonAsync<AttendanceStatusDto>("/api/attendance/2/status"))!;
+        Assert.False(afterExit.HasOpenAttendance);
+        Assert.Null(afterExit.CheckInAtUtc);
+        Assert.Equal(before.EmployeeNumber, afterExit.EmployeeNumber);
+        Assert.Equal(before.FirstName, afterExit.FirstName);
+        Assert.Equal(before.LastName, afterExit.LastName);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync("/api/attendance/2/check-out", null)).StatusCode);
         fixture.Employees.Employees[1].Deactivate(fixture.Employees.Employees[0].Id);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/attendance/2/check-in", null)).StatusCode);
@@ -52,9 +67,9 @@ public sealed class AttendanceApiTests
     {
         await using var fixture = await Fixture.Start();
         var recordPath = "/api/attendance/management/records/" + Guid.NewGuid();
-        foreach (var path in new[] { "/api/attendance/2/status", "/api/attendance/management/records", recordPath })
+        foreach (var path in new[] { "/api/attendance/me/status", "/api/attendance/2/status", "/api/attendance/management/records", recordPath })
             Assert.Equal(HttpStatusCode.Unauthorized, (await fixture.Client.GetAsync(path)).StatusCode);
-        foreach (var path in new[] { "/api/attendance/2/check-in", "/api/attendance/2/check-out", recordPath + "/corrections" })
+        foreach (var path in new[] { "/api/attendance/me/check-in", "/api/attendance/me/check-out", "/api/attendance/2/check-in", "/api/attendance/2/check-out", recordPath + "/corrections" })
             Assert.Equal(HttpStatusCode.Unauthorized, (await fixture.Client.PostAsJsonAsync(path, new { })).StatusCode);
         var attendanceRoutes = ((IEndpointRouteBuilder)fixture.App).DataSources.SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>().Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/api/attendance"));
@@ -69,7 +84,7 @@ public sealed class AttendanceApiTests
     public async Task StatusReturnsOnlySafeFieldsAndEffectiveMidnightState()
     {
         await using var fixture = await Fixture.Start();
-        await fixture.Login("employee");
+        await fixture.Login("manager");
         using var response = await fixture.Client.GetAsync("/api/attendance/2/status");
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(new[] { "checkInAtUtc", "employeeNumber", "firstName", "hasOpenAttendance", "lastName" },
@@ -141,9 +156,72 @@ public sealed class AttendanceApiTests
         Assert.Single((await client.GetFromJsonAsync<AttendanceDetailsDto>(path))!.Corrections);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(path + "/corrections", request)).StatusCode);
         fixture.Employees.Employees[0].SetManagerStatus(false, fixture.Employees.Employees[0].Id);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/attendance/2/status")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/attendance/2/check-in", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/attendance/2/check-out", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(path)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync(path + "/corrections", request)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/attendance/1/check-in", null)).StatusCode);
+        Assert.Equal(1, (await client.GetFromJsonAsync<AttendanceStatusDto>("/api/attendance/me/status"))!.EmployeeNumber);
+    }
+
+    [Theory]
+    [InlineData("me", "employee", 3)]
+    [InlineData("3", "employee", 3)]
+    [InlineData("me", "manager", 1)]
+    public async Task OwnAttendanceResolvesServerIdentityAndPreservesAudit(string route, string username, int number)
+    {
+        await using var fixture = await Fixture.Start();
+        await fixture.Login(username);
+        var path = $"/api/attendance/{route}";
+        using var status = await fixture.Client.GetAsync(path + "/status?employeeNumber=2");
+        Assert.Equal(HttpStatusCode.OK, status.StatusCode);
+        var json = await status.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(number, json.GetProperty("employeeNumber").GetInt32());
+        Assert.Equal(new[] { "checkInAtUtc", "employeeNumber", "firstName", "hasOpenAttendance", "lastName" },
+            json.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        using var entered = await fixture.Client.PostAsJsonAsync(path + "/check-in?employeeNumber=2", new { employeeNumber = 2, employeeId = fixture.Employees.Employees[1].Id });
+        Assert.Equal(HttpStatusCode.OK, entered.StatusCode);
+        var row = Assert.Single(fixture.Records.Rows);
+        Assert.Equal(fixture.Employees.Employees[number - 1].Id, row.EmployeeId);
+        Assert.Equal(row.EmployeeId, row.CreatedByEmployeeId);
+        Assert.True((await fixture.Client.GetFromJsonAsync<AttendanceStatusDto>(path + "/status"))!.HasOpenAttendance);
+        Assert.Equal(HttpStatusCode.Conflict, (await fixture.Client.PostAsync(path + "/check-in", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PostAsync(path + "/check-out", null)).StatusCode);
+        Assert.Equal(row.EmployeeId, row.UpdatedByEmployeeId);
+        Assert.False((await fixture.Client.GetFromJsonAsync<AttendanceStatusDto>(path + "/status"))!.HasOpenAttendance);
+        Assert.Equal(HttpStatusCode.Conflict, (await fixture.Client.PostAsync(path + "/check-out", null)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(999)]
+    public async Task RegularEmployeeCrossAccessReturns403WithoutDetailsOrMutation(int number)
+    {
+        await using var fixture = await Fixture.Start();
+        await fixture.Login("manager");
+        await fixture.Client.PostAsync("/api/attendance/2/check-in", null);
+        fixture.Clock.Now = fixture.Records.Rows[0].AutomaticCheckoutDueAtUtc.AddHours(1);
+        await fixture.Login("employee");
+        var path = $"/api/attendance/{number}";
+        foreach (var response in new[] {
+            await fixture.Client.GetAsync(path + "/status"),
+            await fixture.Client.PostAsync(path + "/check-in", null),
+            await fixture.Client.PostAsync(path + "/check-out", null) })
+        {
+            using (response)
+            {
+                Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.False(json.TryGetProperty("employeeNumber", out _));
+                Assert.DoesNotContain("First", json.ToString());
+                Assert.DoesNotContain("Last", json.ToString());
+            }
+        }
+        var row = Assert.Single(fixture.Records.Rows);
+        Assert.Null(row.CheckOutAtUtc);
+        Assert.Empty(fixture.Records.Corrections);
     }
 
     private sealed class Fixture : IAsyncDisposable

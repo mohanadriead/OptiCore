@@ -2,6 +2,9 @@ namespace OptiCore.Application.Attendance;
 
 public interface IAttendanceService
 {
+    Task<AttendanceStatusDto> SelfStatusAsync(Guid actor, CancellationToken cancellationToken);
+    Task<AttendanceDto> SelfCheckInAsync(Guid actor, CancellationToken cancellationToken);
+    Task<AttendanceDto> SelfCheckOutAsync(Guid actor, CancellationToken cancellationToken);
     Task<AttendanceDto> CheckInAsync(int employeeNumber, Guid actor, CancellationToken cancellationToken);
     Task<AttendanceDto> CheckOutAsync(int employeeNumber, Guid actor, CancellationToken cancellationToken);
     Task<int> RecoverAsync(CancellationToken cancellationToken);

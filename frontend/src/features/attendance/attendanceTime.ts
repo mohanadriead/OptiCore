@@ -3,7 +3,8 @@ export function validEmployeeNumber(value: string) {
 }
 
 export function attendanceTime(value: string | null) {
-  return value ? new Date(value).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' }) : '—'
+  return value ? new Date(value).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '—'
 }
 
 export function israelInput(value: string | null): string {
@@ -17,7 +18,7 @@ export function israelInput(value: string | null): string {
 export function israelUtc(value: string, original: string | null): string | null {
   if (!value) return null
   // Preserve milliseconds and the original occurrence of a repeated winter-transition hour.
-  if (original && value === israelInput(original)) return original
+  if (original && (value === israelInput(original) || value === israelInput(original).slice(0, 16))) return original
   const normalized = value.length === 16 ? value + ':00' : value
   for (const offset of ['+03:00', '+02:00']) {
     const date = new Date(normalized + offset)

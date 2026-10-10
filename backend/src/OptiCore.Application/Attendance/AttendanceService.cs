@@ -1,16 +1,21 @@
 using OptiCore.Application.Employees;
 using OptiCore.Domain.Attendance;
+using OptiCore.Domain.Employees;
 
 namespace OptiCore.Application.Attendance;
 
 public sealed class AttendanceService(IAttendanceRepository attendance, IEmployeeRepository employees,
     TimeProvider clock, AttendanceMidnightPolicy midnight) : IAttendanceService
 {
-    public Task<AttendanceDto> CheckInAsync(int employeeNumber, Guid actor, CancellationToken ct) =>
+    public Task<AttendanceDto> CheckInAsync(int employeeNumber, Guid actor, CancellationToken ct) => CheckInCoreAsync(employeeNumber, actor, ct);
+    public Task<AttendanceDto> SelfCheckInAsync(Guid actor, CancellationToken ct) => CheckInCoreAsync(null, actor, ct);
+    public Task<AttendanceDto> CheckOutAsync(int employeeNumber, Guid actor, CancellationToken ct) => CheckOutCoreAsync(employeeNumber, actor, ct);
+    public Task<AttendanceDto> SelfCheckOutAsync(Guid actor, CancellationToken ct) => CheckOutCoreAsync(null, actor, ct);
+
+    private Task<AttendanceDto> CheckInCoreAsync(int? employeeNumber, Guid actor, CancellationToken ct) =>
         attendance.ExecuteExclusiveAsync(async () =>
         {
-            await RequireEmployeeAsync(actor, ct);
-            var employee = await employees.GetByNumberAsync(employeeNumber, false, ct) ?? throw new EmployeeNotFoundException();
+            var employee = await ResolveSubjectAsync(employeeNumber, actor, ct);
             if (!employee.IsActive) throw new InactiveAttendanceEmployeeException();
             var now = clock.GetUtcNow();
             var open = await attendance.GetOpenAsync(employee.Id, ct);
@@ -20,22 +25,21 @@ public sealed class AttendanceService(IAttendanceRepository attendance, IEmploye
             var record = new AttendanceRecord(employee.Id, actor, now, midnight.NextMidnightUtc(now));
             await attendance.AddAsync(record, ct);
             await attendance.SaveChangesAsync(ct);
-            return AttendanceDto.From(record, employeeNumber);
+            return AttendanceDto.From(record, employee.EmployeeNumber);
         }, ct);
 
-    public async Task<AttendanceDto> CheckOutAsync(int employeeNumber, Guid actor, CancellationToken ct)
+    private async Task<AttendanceDto> CheckOutCoreAsync(int? employeeNumber, Guid actor, CancellationToken ct)
     {
         var result = await attendance.ExecuteExclusiveAsync<AttendanceDto?>(async () =>
         {
-            await RequireEmployeeAsync(actor, ct);
-            var employee = await employees.GetByNumberAsync(employeeNumber, false, ct) ?? throw new EmployeeNotFoundException();
+            var employee = await ResolveSubjectAsync(employeeNumber, actor, ct);
             var open = await attendance.GetOpenAsync(employee.Id, ct);
             if (open is null) return null;
             var now = clock.GetUtcNow();
             var automatic = CloseOverdue(open, now);
             if (!automatic) open.CheckOut(now, now, actor);
             await attendance.SaveChangesAsync(ct);
-            return automatic ? null : AttendanceDto.From(open, employeeNumber);
+            return automatic ? null : AttendanceDto.From(open, employee.EmployeeNumber);
         }, ct);
         // Recovery must commit even when there is no current-day session to check out.
         return result ?? throw new NoOpenAttendanceException();
@@ -59,8 +63,15 @@ public sealed class AttendanceService(IAttendanceRepository attendance, IEmploye
 
     public async Task<AttendanceStatusDto> StatusAsync(int employeeNumber, Guid actor, CancellationToken ct)
     {
-        await RequireEmployeeAsync(actor, ct);
-        var employee = await employees.GetByNumberAsync(employeeNumber, false, ct) ?? throw new EmployeeNotFoundException();
+        var employee = await ResolveSubjectAsync(employeeNumber, actor, ct);
+        return await StatusForAsync(employee, ct);
+    }
+
+    public async Task<AttendanceStatusDto> SelfStatusAsync(Guid actor, CancellationToken ct) =>
+        await StatusForAsync(await ResolveSubjectAsync(null, actor, ct), ct);
+
+    private async Task<AttendanceStatusDto> StatusForAsync(Employee employee, CancellationToken ct)
+    {
         var open = await attendance.GetOpenAsync(employee.Id, ct);
         // An overdue session is effectively closed at midnight even before recovery persists it.
         var current = open is not null && open.AutomaticCheckoutDueAtUtc > clock.GetUtcNow();
@@ -99,7 +110,16 @@ public sealed class AttendanceService(IAttendanceRepository attendance, IEmploye
             return await attendance.DetailsAsync(id, ct) ?? throw new AttendanceNotFoundException();
         }, ct);
 
-    private async Task<OptiCore.Domain.Employees.Employee> RequireEmployeeAsync(Guid actor, CancellationToken ct)
+    private async Task<Employee> ResolveSubjectAsync(int? employeeNumber, Guid actor, CancellationToken ct)
+    {
+        var current = await RequireEmployeeAsync(actor, ct);
+        if (employeeNumber is null || employeeNumber == current.EmployeeNumber) return current;
+        // Reject before looking up the target so its existence/details cannot leak.
+        if (!current.IsManager) throw new ManagerRequiredException();
+        return await employees.GetByNumberAsync(employeeNumber.Value, false, ct) ?? throw new EmployeeNotFoundException();
+    }
+
+    private async Task<Employee> RequireEmployeeAsync(Guid actor, CancellationToken ct)
     {
         var employee = await employees.GetByIdAsync(actor, false, ct) ?? throw new InvalidCredentialsException();
         if (!employee.IsActive) throw new InactiveEmployeeException();

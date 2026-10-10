@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { israelInput, israelUtc } from '@/features/attendance/attendanceTime'
+import { attendanceTime, israelInput, israelUtc } from '@/features/attendance/attendanceTime'
 
 it.each([
   ['2026-01-01T10:00:00Z', '2026-01-01T12:00:00'],
@@ -11,6 +11,13 @@ it.each([
 it('preserves exact timestamps when inputs are unchanged', () => {
   const original = '2026-10-24T23:30:00.123Z'
   expect(israelUtc(israelInput(original), original)).toBe(original)
+  expect(israelUtc(israelInput(original).slice(0, 16), original)).toBe(original)
+})
+it('displays Israel times in 24-hour minute precision', () => {
+  expect(attendanceTime('2026-07-01T15:25:37Z')).toContain('18:25')
+  expect(attendanceTime('2026-01-01T15:25:37Z')).toContain('17:25')
+  expect(attendanceTime('2026-07-01T21:00:00Z')).toContain('00:00')
+  expect(attendanceTime(null)).toBe('—')
 })
 it('rejects nonexistent Israel spring-transition times', () => {
   expect(() => israelUtc('2026-03-27T02:30', null)).toThrow()
