@@ -24,6 +24,7 @@ export function AppShell() {
       <aside className="border-b bg-white p-4 md:w-56 md:shrink-0 md:border-e md:border-b-0">
         <p className="mb-3 px-3 text-[10px] font-bold tracking-normal text-muted-foreground">סביבת עבודה</p>
         <nav aria-label="ניווט ראשי" className="flex flex-wrap gap-1 md:flex-col">
+          <NavLink to="/products" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><Glasses size={18} />מוצרים</NavLink>
           <NavLink to="/customers" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><Users size={18} />לקוחות</NavLink>
           {auth.employee?.isManager && <NavLink to="/employees" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><UserRound size={18} />עובדים</NavLink>}
           {future.map(({ label, icon: Icon }) => <button key={label} disabled className="flex items-center gap-3 px-3 py-2.5 text-start text-sm text-slate-400" title="עדיין לא זמין"><Icon size={18} />{label}<span className="ms-auto text-[10px]">בקרוב</span></button>)}

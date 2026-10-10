@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using OptiCore.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using OptiCore.Infrastructure.Persistence;
 namespace OptiCore.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(OptiCoreDbContext))]
-    partial class OptiCoreDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261010102857_RemoveProductVatRate")]
+    partial class RemoveProductVatRate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

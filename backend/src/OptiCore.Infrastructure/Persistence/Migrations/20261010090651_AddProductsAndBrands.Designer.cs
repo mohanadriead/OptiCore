@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using OptiCore.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using OptiCore.Infrastructure.Persistence;
 namespace OptiCore.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(OptiCoreDbContext))]
-    partial class OptiCoreDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261010090651_AddProductsAndBrands")]
+    partial class AddProductsAndBrands
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -315,6 +318,10 @@ namespace OptiCore.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedByEmployeeId")
                         .HasColumnType("uuid");
 
+                    b.Property<decimal>("VatRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Barcode")
@@ -341,6 +348,8 @@ namespace OptiCore.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_Products_LensType", "\"LensType\" IS NULL OR \"Category\" = 'Lenses'");
 
                             t.HasCheckConstraint("CK_Products_Prices", "\"RegularSalePrice\" >= 0 AND (\"PromoPrice\" IS NULL OR \"PromoPrice\" >= 0)");
+
+                            t.HasCheckConstraint("CK_Products_VatRate", "\"VatRate\" BETWEEN 0 AND 100");
                         });
                 });
 
