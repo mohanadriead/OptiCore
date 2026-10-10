@@ -11,6 +11,18 @@ const validationFields: Record<string, string> = {
   city: 'עיר', street: 'רחוב', gender: 'מגדר', notes: 'הערות', username: 'שם משתמש', phone: 'טלפון',
 }
 const knownErrors = new Map<string, string>([
+  ['409:Product barcode already exists.', 'מוצר עם ברקוד זה כבר קיים במערכת.'],
+  ['409:Brand name already exists.', 'מותג בשם זה כבר קיים במערכת.'],
+  ['409:Brand is inactive.', 'המותג אינו פעיל. יש לבחור מותג פעיל.'],
+  ['404:Product was not found.', 'המוצר לא נמצא.'],
+  ['404:Brand was not found.', 'המותג לא נמצא. רענן את רשימת המותגים.'],
+  ['400:Invalid catalog text length.', 'אחד משדות המוצר או המותג ארוך מדי.'],
+  ['400:Catalog text is required.', 'יש למלא את שדות החובה.'],
+  ['400:Invalid catalog price.', 'יש להזין מחיר לא שלילי עם עד שתי ספרות אחרי הנקודה.'],
+  ['400:Promo price cannot exceed regular price.', 'מחיר המבצע לא יכול להיות גבוה מהמחיר הרגיל.'],
+  ['400:Invalid catalog category.', 'יש לבחור ערך תקין לקטגוריה ולמגדר.'],
+  ['400:Duplicate product attribute key.', 'לא ניתן להזין שם מאפיין כפול.'],
+  ['400:Invalid product attribute.', 'יש למלא שם וערך תקינים לכל מאפיין.'],
   ['400:Unknown permission code.', 'אחת ההרשאות אינה מוכרת. רענן את הרשימה ונסה שוב.'],
   ['400:Permissions are required.', 'יש לשלוח רשימת הרשאות.'],
   ['409:A customer with this NationalId already exists.', 'לקוח עם תעודת זהות זו כבר קיים במערכת.'],

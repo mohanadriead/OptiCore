@@ -9,9 +9,18 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { ChangePasswordPage } from '@/features/auth/ChangePasswordPage'
 import { EmployeesPage } from '@/features/employees/EmployeesPage'
 import { EmployeeCreatePage } from '@/features/employees/EmployeeCreatePage'
+import { ProductsPage } from '@/features/products/ProductsPage'
+import { ProductEditorPage } from '@/features/products/ProductEditorPage'
+import { ProductDetailsPage } from '@/features/products/ProductDetailsPage'
+import { BrandsPage } from '@/features/products/BrandsPage'
 export const routes = [{ path: '/login', element: <LoginPage /> }, { element: <RequireEmployee />, children: [{ element: <AppShell />, children: [
   { path: '/', element: <Navigate to="/customers" replace /> },
   { path: '/customers', element: <CustomerSearchPage /> },
+  { path: '/products', element: <ProductsPage /> },
+  { path: '/products/new', element: <ProductEditorPage /> },
+  { path: '/products/:productNumber', element: <ProductDetailsPage /> },
+  { path: '/products/:productNumber/edit', element: <ProductEditorPage /> },
+  { path: '/brands', element: <BrandsPage /> },
   { path: '/customers/new', element: <CustomerCreatePage /> },
   { path: '/customers/:customerNumber', element: <CustomerDetailsPage /> },
   { path: '/customers/:customerNumber/edit', element: <CustomerEditPage /> },
