@@ -18,6 +18,8 @@ public static class DependencyInjection
 
         services.AddDbContext<OptiCoreDbContext>(options =>
             options.UseNpgsql(connectionString));
+        services.AddScoped<OptiCore.Application.Attendance.IAttendanceRepository, Persistence.Repositories.AttendanceRepository>();
+        services.AddHostedService<Attendance.AttendanceRecoveryWorker>();
 
         services.AddScoped<OptiCore.Application.Customers.ICustomerRepository,
             OptiCore.Infrastructure.Persistence.Repositories.CustomerRepository>();

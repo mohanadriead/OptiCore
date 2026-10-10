@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using OptiCore.Application.Attendance;
 using OptiCore.Application.Customers;
 using OptiCore.Application.Employees;
 
@@ -10,6 +11,9 @@ public sealed class ApiExceptionHandler : IExceptionHandler
     {
         var (status, message) = exception switch
         {
+            DuplicateAttendanceException => (409, "לעובד כבר קיימת כניסה פתוחה."),
+            NoOpenAttendanceException => (409, "לא קיימת כניסה פתוחה לעובד."),
+            InactiveAttendanceEmployeeException => (403, "לא ניתן לרשום כניסה לעובד לא פעיל."),
             CustomerNotFoundException => (StatusCodes.Status404NotFound, "Customer was not found."),
             DuplicateNationalIdException => (StatusCodes.Status409Conflict, "A customer with this NationalId already exists."),
             EmployeeNotFoundException => (404, "Employee was not found."),

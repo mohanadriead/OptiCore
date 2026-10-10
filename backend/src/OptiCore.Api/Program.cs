@@ -1,4 +1,5 @@
 using OptiCore.Api.Errors;
+using OptiCore.Api.Endpoints.Attendance;
 using OptiCore.Infrastructure;
 using OptiCore.Infrastructure.Persistence;
 using OptiCore.Application;
@@ -27,6 +28,7 @@ app.MapAuthEndpoints();
 app.MapEmployeeEndpoints();
 app.MapCustomerEndpoints();
 app.MapPermissionEndpoints();
+app.MapAttendanceEndpoints();
 
 app.MapGet("/health", () =>
 {

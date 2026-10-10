@@ -6,6 +6,7 @@ namespace OptiCore.Infrastructure.Persistence;
 
 public class OptiCoreDbContext : DbContext
 {
+    public DbSet<OptiCore.Domain.Attendance.AttendanceRecord> AttendanceRecords => Set<OptiCore.Domain.Attendance.AttendanceRecord>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<OptiCore.Domain.Employees.Employee> Employees => Set<OptiCore.Domain.Employees.Employee>();
     public DbSet<OptiCore.Domain.Permissions.EmployeePermission> EmployeePermissions => Set<OptiCore.Domain.Permissions.EmployeePermission>();

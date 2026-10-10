@@ -11,6 +11,9 @@ const validationFields: Record<string, string> = {
   city: 'עיר', street: 'רחוב', gender: 'מגדר', notes: 'הערות', username: 'שם משתמש', phone: 'טלפון',
 }
 const knownErrors = new Map<string, string>([
+  ['409:לעובד כבר קיימת כניסה פתוחה.', 'לעובד כבר קיימת כניסה פתוחה.'],
+  ['409:לא קיימת כניסה פתוחה לעובד.', 'לא קיימת כניסה פתוחה לעובד.'],
+  ['403:לא ניתן לרשום כניסה לעובד לא פעיל.', 'לא ניתן לרשום כניסה לעובד לא פעיל.'],
   ['400:Unknown permission code.', 'אחת ההרשאות אינה מוכרת. רענן את הרשימה ונסה שוב.'],
   ['400:Permissions are required.', 'יש לשלוח רשימת הרשאות.'],
   ['409:A customer with this NationalId already exists.', 'לקוח עם תעודת זהות זו כבר קיים במערכת.'],
