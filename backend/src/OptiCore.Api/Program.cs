@@ -1,4 +1,5 @@
 using OptiCore.Api.Errors;
+using OptiCore.Api.Hosting;
 using OptiCore.Api.Endpoints.Products;
 using OptiCore.Infrastructure;
 using OptiCore.Infrastructure.Persistence;
@@ -11,6 +12,7 @@ using OptiCore.Api.Security;
 using OptiCore.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.ConfigureWebHosting();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -21,6 +23,7 @@ builder.Services.AddEmployeeAuthentication(builder.Environment.IsDevelopment());
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseFrontendFiles();
 app.UseMiddleware<SameOriginRequests>();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -30,13 +33,8 @@ app.MapCustomerEndpoints();
 app.MapPermissionEndpoints();
 app.MapCatalogEndpoints();
 
-app.MapGet("/health", () =>
-{
-    return Results.Ok(new
-    {
-        status = "ok"
-    });
-});
+app.MapLiveness();
+app.MapFrontendRoutes();
 
 app.MapGet("/health/database", async (OptiCoreDbContext db) =>
 {

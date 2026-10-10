@@ -20,4 +20,46 @@
     <ProjectReference Include="..\OptiCore.Infrastructure\OptiCore.Infrastructure.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <FrontendRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../../frontend/'))</FrontendRoot>
+    <FrontendBuildRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/obj/frontend-publish/'))</FrontendBuildRoot>
+    <FrontendDist>$(FrontendRoot)dist/</FrontendDist>
+    <BuildFrontend Condition="'$(BuildFrontend)' == ''">true</BuildFrontend>
+    <NpmCommand Condition="$([MSBuild]::IsOSPlatform('Windows'))">npm.cmd</NpmCommand>
+    <NpmCommand Condition="'$(NpmCommand)' == ''">npm</NpmCommand>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <!-- Publish only: normal dotnet build/run and Vite development are unchanged.
+       Docker supplies a separately built dist and sets BuildFrontend=false. -->
+  <Target Name="PublishFrontend" BeforeTargets="ComputeFilesToPublish">
+    <!-- Never replace the working frontend's node_modules: Vite may be running. -->
+    <ItemGroup Condition="'$(BuildFrontend)' == 'true'">
+      <FrontendSource Include="$(FrontendRoot)src/**/*" />
+      <FrontendPublic Include="$(FrontendRoot)public/**/*" />
+      <FrontendConfig Include="$(FrontendRoot)package.json;$(FrontendRoot)package-lock.json;$(FrontendRoot)index.html;$(FrontendRoot)tsconfig*.json;$(FrontendRoot)vite.config.ts" />
+    </ItemGroup>
+    <MakeDir Directories="$(FrontendBuildRoot)" Condition="'$(BuildFrontend)' == 'true'" />
+    <RemoveDir Directories="$(FrontendBuildRoot)src;$(FrontendBuildRoot)public;$(FrontendBuildRoot)dist" Condition="'$(BuildFrontend)' == 'true'" />
+    <Copy SourceFiles="@(FrontendSource)" DestinationFiles="@(FrontendSource->'$(FrontendBuildRoot)src/%(RecursiveDir)%(Filename)%(Extension)')" Condition="'$(BuildFrontend)' == 'true'" />
+    <Copy SourceFiles="@(FrontendPublic)" DestinationFiles="@(FrontendPublic->'$(FrontendBuildRoot)public/%(RecursiveDir)%(Filename)%(Extension)')" Condition="'$(BuildFrontend)' == 'true'" />
+    <Copy SourceFiles="@(FrontendConfig)" DestinationFiles="@(FrontendConfig->'$(FrontendBuildRoot)%(Filename)%(Extension)')" Condition="'$(BuildFrontend)' == 'true'" />
+    <Exec WorkingDirectory="$(FrontendBuildRoot)" Command="$(NpmCommand) ci" Condition="'$(BuildFrontend)' == 'true'" />
+    <Exec WorkingDirectory="$(FrontendBuildRoot)" Command="$(NpmCommand) run build" Condition="'$(BuildFrontend)' == 'true'" />
+    <PropertyGroup Condition="'$(BuildFrontend)' == 'true'">
+      <FrontendDist>$(FrontendBuildRoot)dist/</FrontendDist>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(FrontendDist)index.html')" Text="Frontend dist/index.html is missing. Build the frontend before publishing with BuildFrontend=false." />
+    <ItemGroup>
+      <FrontendFiles Include="$(FrontendDist)**/*" />
+      <ResolvedFileToPublish Include="@(FrontendFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot/%(FrontendFiles.RecursiveDir)%(FrontendFiles.Filename)%(FrontendFiles.Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
 </Project>

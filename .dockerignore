@@ -1,0 +1,34 @@
+# Allow only source inputs needed for the two builds.
+**
+!Dockerfile
+!.dockerignore
+!backend/
+!backend/src/
+!backend/src/**/
+!backend/src/**/*.cs
+!backend/src/**/*.csproj
+!backend/src/**/appsettings.json
+!frontend/
+!frontend/src/
+!frontend/src/**
+!frontend/public/
+!frontend/public/**
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/tsconfig*.json
+!frontend/vite.config.ts
+# Re-exclude generated code and any nested local configuration/credentials.
+**/bin/**
+**/obj/**
+**/node_modules/**
+**/.git/**
+**/.env*
+**/secrets.json
+**/appsettings.*.json
+**/*.local
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.sql
+**/*.db
