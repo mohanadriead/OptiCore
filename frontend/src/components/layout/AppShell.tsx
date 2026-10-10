@@ -26,7 +26,8 @@ export function AppShell() {
         <nav aria-label="ניווט ראשי" className="flex flex-wrap gap-1 md:flex-col">
           <NavLink to="/customers" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><Users size={18} />לקוחות</NavLink>
           {auth.employee?.isManager && <NavLink to="/employees" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><UserRound size={18} />עובדים</NavLink>}
-          {auth.employee?.isManager && <NavLink to="/attendance" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><Clock size={18} aria-hidden="true" />נוכחות</NavLink>}
+          <NavLink to="/attendance" end className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><Clock size={18} aria-hidden="true" />נוכחות</NavLink>
+          {auth.employee?.isManager && <NavLink to="/attendance/management" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-primary ${isActive ? 'bg-accent' : ''}`}><Clock size={18} aria-hidden="true" />ניהול נוכחות</NavLink>}
           {future.map(({ label, icon: Icon }) => <button key={label} disabled className="flex items-center gap-3 px-3 py-2.5 text-start text-sm text-slate-400" title="עדיין לא זמין"><Icon size={18} />{label}<span className="ms-auto text-[10px]">בקרוב</span></button>)}
         </nav>
       </aside>

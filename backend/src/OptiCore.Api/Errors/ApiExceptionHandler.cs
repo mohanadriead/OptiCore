@@ -11,6 +11,8 @@ public sealed class ApiExceptionHandler : IExceptionHandler
     {
         var (status, message) = exception switch
         {
+            AttendanceNotFoundException => (404, "רשומת הנוכחות לא נמצאה."),
+            StaleAttendanceException => (409, "הרשומה השתנתה. יש לטעון מחדש לפני תיקון."),
             DuplicateAttendanceException => (409, "לעובד כבר קיימת כניסה פתוחה."),
             NoOpenAttendanceException => (409, "לא קיימת כניסה פתוחה לעובד."),
             InactiveAttendanceEmployeeException => (403, "לא ניתן לרשום כניסה לעובד לא פעיל."),

@@ -12,7 +12,7 @@ public sealed class AttendanceRecordConfiguration : IEntityTypeConfiguration<Att
         builder.ToTable("AttendanceRecords", table =>
         {
             table.HasCheckConstraint("CK_AttendanceRecords_Boundary", "\"AutomaticCheckoutDueAtUtc\" > \"CheckInAtUtc\"");
-            table.HasCheckConstraint("CK_AttendanceRecords_Checkout", "(\"CheckOutAtUtc\" IS NULL AND \"CheckoutProcessedAtUtc\" IS NULL AND NOT \"WasCheckoutAutomatic\") OR (\"CheckOutAtUtc\" IS NOT NULL AND \"CheckoutProcessedAtUtc\" IS NOT NULL AND \"CheckOutAtUtc\" >= \"CheckInAtUtc\" AND \"CheckoutProcessedAtUtc\" >= \"CheckOutAtUtc\" AND ((\"WasCheckoutAutomatic\" AND \"UpdatedByEmployeeId\" IS NULL AND \"CheckOutAtUtc\" = \"AutomaticCheckoutDueAtUtc\") OR (NOT \"WasCheckoutAutomatic\" AND \"UpdatedByEmployeeId\" IS NOT NULL AND \"CheckOutAtUtc\" < \"AutomaticCheckoutDueAtUtc\")))");
+            table.HasCheckConstraint("CK_AttendanceRecords_Checkout", "(\"CheckOutAtUtc\" IS NULL AND \"CheckoutProcessedAtUtc\" IS NULL AND NOT \"WasCheckoutAutomatic\") OR (\"CheckOutAtUtc\" IS NOT NULL AND \"CheckoutProcessedAtUtc\" IS NOT NULL AND \"CheckOutAtUtc\" >= \"CheckInAtUtc\" AND \"CheckoutProcessedAtUtc\" >= \"CheckOutAtUtc\" AND ((\"WasCheckoutAutomatic\" AND \"CheckOutAtUtc\" = \"AutomaticCheckoutDueAtUtc\") OR (NOT \"WasCheckoutAutomatic\" AND \"UpdatedByEmployeeId\" IS NOT NULL AND \"CheckOutAtUtc\" <= \"AutomaticCheckoutDueAtUtc\")))");
         });
         builder.HasKey(row => row.Id);
         builder.Property(row => row.Id).ValueGeneratedNever();

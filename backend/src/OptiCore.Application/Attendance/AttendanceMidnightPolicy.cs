@@ -4,6 +4,9 @@ public sealed class AttendanceMidnightPolicy
 {
     private readonly TimeZoneInfo storeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Jerusalem");
 
+    public DateTimeOffset StartOfDayUtc(DateOnly day) => new(
+        TimeZoneInfo.ConvertTimeToUtc(day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified), storeZone), TimeSpan.Zero);
+
     public DateTimeOffset NextMidnightUtc(DateTimeOffset checkIn)
     {
         var local = TimeZoneInfo.ConvertTime(checkIn, storeZone);

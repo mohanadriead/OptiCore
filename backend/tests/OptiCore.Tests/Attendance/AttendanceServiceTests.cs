@@ -31,16 +31,21 @@ public sealed class AttendanceServiceTests
     }
 
     [Fact]
-    public async Task RejectsInactiveSubjectNonManagerAndMissingNumber()
+    public async Task RejectsInactiveSubjectInactiveActorAndMissingNumber()
     {
         var actor = employees.Seed();
         var subject = employees.Seed("subject", false, "222222222");
-        await Assert.ThrowsAsync<ManagerRequiredException>(() => Service.CheckInAsync(actor.EmployeeNumber, subject.Id, default));
-        await Assert.ThrowsAsync<ManagerRequiredException>(() => Service.CheckOutAsync(actor.EmployeeNumber, subject.Id, default));
+        var entry = await Service.CheckInAsync(actor.EmployeeNumber, subject.Id, default);
+        Assert.Equal(actor.Id, entry.EmployeeId);
+        Assert.Equal(subject.Id, entry.CreatedByEmployeeId);
+        await Service.CheckOutAsync(actor.EmployeeNumber, subject.Id, default);
         await Assert.ThrowsAsync<EmployeeNotFoundException>(() => Service.CheckInAsync(999, actor.Id, default));
         subject.Deactivate(actor.Id);
         await Assert.ThrowsAsync<InactiveAttendanceEmployeeException>(() => Service.CheckInAsync(subject.EmployeeNumber, actor.Id, default));
-        Assert.Empty(records.Rows);
+        await Assert.ThrowsAsync<InactiveEmployeeException>(() => Service.CheckInAsync(actor.EmployeeNumber, subject.Id, default));
+        await Assert.ThrowsAsync<InactiveEmployeeException>(() => Service.CheckOutAsync(actor.EmployeeNumber, subject.Id, default));
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() => Service.CheckInAsync(actor.EmployeeNumber, Guid.Empty, default));
+        Assert.Single(records.Rows);
     }
 
     [Fact]
@@ -127,18 +132,54 @@ internal sealed class TestClock(DateTimeOffset now) : TimeProvider
     public override DateTimeOffset GetUtcNow() => Now;
 }
 
-internal sealed class FakeAttendanceRepository : IAttendanceRepository
+internal sealed class FakeAttendanceRepository(IEmployeeRepository? employees = null) : IAttendanceRepository
 {
     public List<AttendanceRecord> Rows { get; } = [];
+    public List<AttendanceCorrection> Corrections { get; } = [];
+    public bool InTransaction { get; private set; }
     private readonly SemaphoreSlim gate = new(1);
     public async Task<T> ExecuteExclusiveAsync<T>(Func<Task<T>> operation, CancellationToken ct)
     {
         await gate.WaitAsync(ct);
+        InTransaction = true;
         try { return await operation(); }
-        finally { gate.Release(); }
+        finally { InTransaction = false; gate.Release(); }
     }
     public Task<AttendanceRecord?> GetOpenAsync(Guid id, CancellationToken ct) => Task.FromResult(Rows.SingleOrDefault(row => row.EmployeeId == id && row.CheckOutAtUtc is null));
     public Task<IReadOnlyList<AttendanceRecord>> GetOverdueAsync(DateTimeOffset now, CancellationToken ct) => Task.FromResult<IReadOnlyList<AttendanceRecord>>(Rows.Where(row => row.CheckOutAtUtc is null && row.AutomaticCheckoutDueAtUtc <= now).ToArray());
     public Task AddAsync(AttendanceRecord row, CancellationToken ct) { Rows.Add(row); return Task.CompletedTask; }
-    public Task SaveChangesAsync(CancellationToken ct) => Task.CompletedTask;
+    public Task SaveChangesAsync(CancellationToken ct) { Assert.True(InTransaction); return Task.CompletedTask; }
+    public Task<AttendanceRecord?> GetByIdAsync(Guid id, CancellationToken ct) => Task.FromResult(Rows.SingleOrDefault(row => row.Id == id));
+    private async Task<AttendanceHistoryDto> HistoryRow(AttendanceRecord row, CancellationToken ct)
+    {
+        var employee = await employees!.GetByIdAsync(row.EmployeeId, false, ct);
+        return new(row.Id, employee!.EmployeeNumber, employee.FirstName, employee.LastName, row.CheckInAtUtc,
+            row.CheckOutAtUtc, row.WasCheckoutAutomatic, row.AutomaticCheckoutDueAtUtc, row.CheckoutProcessedAtUtc, row.UpdatedAtUtc);
+    }
+    public async Task<AttendanceHistoryPage> HistoryAsync(int? number, DateTimeOffset? from, DateTimeOffset? until, int page, int size, CancellationToken ct)
+    {
+        var rows = await Task.WhenAll(Rows.Select(row => HistoryRow(row, ct)));
+        var filtered = rows.Where(row => (number is null || row.EmployeeNumber == number) && (from is null || row.CheckInAtUtc >= from)
+            && (until is null || row.CheckInAtUtc < until)).OrderByDescending(row => row.CheckInAtUtc).ThenByDescending(row => row.Id).ToArray();
+        return new(filtered.Skip((page - 1) * size).Take(size).ToArray(), filtered.Length, page, size);
+    }
+    public async Task<AttendanceDetailsDto?> DetailsAsync(Guid id, CancellationToken ct)
+    {
+        var row = Rows.SingleOrDefault(row => row.Id == id);
+        if (row is null) return null;
+        var audit = new List<AttendanceCorrectionDto>();
+        foreach (var correction in Corrections.Where(correction => correction.AttendanceRecordId == id))
+        {
+            var actor = await employees!.GetByIdAsync(correction.CorrectedByEmployeeId, false, ct);
+            audit.Add(new(correction.PreviousCheckInAtUtc, correction.PreviousCheckOutAtUtc, correction.NewCheckInAtUtc,
+                correction.NewCheckOutAtUtc, correction.CorrectedAtUtc, actor!.EmployeeNumber, actor.FirstName, actor.LastName, correction.Reason));
+        }
+        return new(await HistoryRow(row, ct), audit);
+    }
+    public Task AddCorrectionAsync(AttendanceCorrection correction, CancellationToken ct)
+    {
+        Assert.True(InTransaction);
+        Corrections.Add(correction);
+        return Task.CompletedTask;
+    }
 }

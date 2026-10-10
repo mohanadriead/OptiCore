@@ -37,4 +37,33 @@ public sealed class AttendanceRecord : AuditableEntity
         UpdatedByEmployeeId = actor;
         WasCheckoutAutomatic = actor is null;
     }
+
+    public AttendanceCorrection Correct(DateTimeOffset checkIn, DateTimeOffset? checkOut,
+        DateTimeOffset midnight, Guid actor, DateTimeOffset now, string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length > 2000)
+            throw new ArgumentException("סיבת התיקון נדרשת ועד 2000 תווים.");
+        if (actor == Guid.Empty || now.Offset != TimeSpan.Zero || checkIn.Offset != TimeSpan.Zero ||
+            midnight.Offset != TimeSpan.Zero || (checkOut.HasValue && checkOut.Value.Offset != TimeSpan.Zero))
+            throw new ArgumentException("התיקון דורש עובד מזוהה וזמנים ב־UTC.");
+        if (checkIn > now || midnight <= checkIn || checkOut < checkIn || checkOut > now || checkOut > midnight)
+            throw new ArgumentException("זמני הנוכחות אינם תקינים. היציאה חייבת להיות לאחר הכניסה ועד חצות.");
+        if (checkOut is null && (CheckOutAtUtc is not null || midnight <= now))
+            throw new ArgumentException("לא ניתן לפתוח מחדש רשומה סגורה או להשאיר כניסה פתוחה לאחר חצות.");
+        var previousCheckIn = CheckInAtUtc;
+        var previousCheckOut = CheckOutAtUtc;
+        // Keeping an automatic boundary keeps its original processing time. An override becomes
+        // a manual checkout; the correction timestamp is its actual processing time.
+        var remainsAutomatic = WasCheckoutAutomatic && checkOut == midnight;
+        var processed = checkOut is null ? (DateTimeOffset?)null : remainsAutomatic && CheckoutProcessedAtUtc >= checkOut
+            ? CheckoutProcessedAtUtc : now;
+        CheckInAtUtc = checkIn;
+        CheckOutAtUtc = checkOut;
+        AutomaticCheckoutDueAtUtc = midnight;
+        CheckoutProcessedAtUtc = processed;
+        WasCheckoutAutomatic = remainsAutomatic;
+        UpdatedAtUtc = now;
+        UpdatedByEmployeeId = actor;
+        return new AttendanceCorrection(this, previousCheckIn, previousCheckOut, actor, now, reason.Trim());
+    }
 }

@@ -94,6 +94,41 @@ public sealed class AttendancePostgresTests
             Assert.Equal(clock.Now, automatic.CheckoutProcessedAtUtc);
             Assert.Null(automatic.UpdatedByEmployeeId);
             Assert.Equal(0, await verification.AttendanceRecords.CountAsync(row => row.CheckOutAtUtc == null, ct));
+
+            // Exercise real SQL projections and transactional correction audit in the isolated schema.
+            await using (var db = new OptiCoreDbContext(options))
+            {
+                var repository = new AttendanceRepository(db);
+                var service = new AttendanceService(repository, new EmployeeRepository(db), clock, new());
+                var history = await service.HistoryAsync(subject.EmployeeNumber, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 3), 1, 25, actor.Id, ct);
+                Assert.Equal(2, history.Total);
+                var request = new CorrectAttendanceRequest(automatic.CheckInAtUtc, automatic.AutomaticCheckoutDueAtUtc.AddHours(-1),
+                    "יציאה שגויה", automatic.CheckInAtUtc, automatic.CheckOutAtUtc, automatic.UpdatedAtUtc);
+                var corrected = await service.CorrectAsync(automatic.Id, request, actor.Id, ct);
+                Assert.False(corrected.Record.WasCheckoutAutomatic);
+                Assert.Single(corrected.Corrections);
+                Assert.Equal(clock.Now, corrected.Corrections[0].CorrectedAtUtc);
+            }
+            // A failure after SaveChanges rolls back both the record and its new audit entry.
+            await using (var db = new OptiCoreDbContext(options))
+            {
+                var repository = new AttendanceRepository(db);
+                await Assert.ThrowsAsync<InvalidOperationException>(() => repository.ExecuteExclusiveAsync<int>(async () =>
+                {
+                    var row = (await repository.GetByIdAsync(automatic.Id, ct))!;
+                    var audit = row.Correct(row.CheckInAtUtc.AddMinutes(-1), row.CheckOutAtUtc,
+                        row.AutomaticCheckoutDueAtUtc, actor.Id, clock.Now, "rollback test");
+                    await repository.AddCorrectionAsync(audit, ct);
+                    await repository.SaveChangesAsync(ct);
+                    throw new InvalidOperationException("Injected transaction failure");
+                }, ct));
+            }
+            await using (var db = new OptiCoreDbContext(options))
+            {
+                Assert.Single(await db.AttendanceCorrections.Where(row => row.AttendanceRecordId == automatic.Id).ToListAsync(ct));
+                var row = await db.AttendanceRecords.SingleAsync(row => row.Id == automatic.Id, ct);
+                Assert.Equal(automatic.CheckInAtUtc, row.CheckInAtUtc);
+            }
         }
         finally
         {
